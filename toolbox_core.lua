@@ -1055,7 +1055,11 @@ pluginManager = {
         for i, v in pairs(pluginManager.whileLoop) do
             local ms_to_sec = v.run_every / 1000
             if os.time() - v.last_run > ms_to_sec then
-                _G[v.plugin_table][v.call_function]()
+                if v.do_pcall == true then
+                    pcall(_G[v.plugin_table][v.call_function])
+                else
+                    _G[v.plugin_table][v.call_function]()
+                end
                 v.last_run = os.time()
             end
         end
