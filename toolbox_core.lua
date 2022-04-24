@@ -382,7 +382,7 @@ dumpHandler = {
                     if capturing_methods == true and v:find("	// RVA:") and v:find(" VA: ") and v:find("MoveNext") ==
                         nil then
                         capturing_fields = false
-                        local method_offset = tempDumpTable[i]:gsub(".+// RVA: (0x[A-Z0-9]+) Offset: .+", "%1")
+                        local method_offset = tempDumpTable[i]:gsub(".+// RVA: (0x[A-Za-z0-9]+) .+: .+", "%1")
                         local method_name = tempDumpTable[i + 1]:gsub("	", "")
                         local method_type = ""
                         if method_name:find(" static ") or method_name:find(" override ") or
@@ -457,11 +457,22 @@ dumpHandler = {
                     end
                 end
             end
+            local always_add = {"Boolean","Single","Double","Int16","Int32","Int64","UInt16","UInt32","UInt64","String","Byte","SByte","Char","Void"}
             for k, v in pairs(temp_types) do
+                local added = false
                 table.insert(bc_toolbox_method_types_all, v)
-                if v:find("[A-Z]") then
-                else
+                for i,value in pairs (always_add) do
+                if v == value then
                     table.insert(bc_toolbox_method_types, v)
+                    added = true 
+                    break
+                end
+                end
+                if v:find("[A-Z_]") then
+                else
+                if added == false then
+                    table.insert(bc_toolbox_method_types, v)
+                    end
                 end
             end
         end
