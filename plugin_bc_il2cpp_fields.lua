@@ -214,8 +214,10 @@ il2cppFields = {
             for i, v in pairs(class_headers) do
                 if il2cppFields.arch.x64 then
                     class_headers[i].address = class_headers[i].address - 16
+                    namespace_offset = 24
                 else
                     class_headers[i].address = class_headers[i].address - 8
+                    namespace_offset = 12
                 end
             end
             gg.setRanges(gg.REGION_ANONYMOUS)
@@ -241,7 +243,7 @@ il2cppFields = {
             for i, v in ipairs(found_classes_sorted) do
                 namespace_string_address = {}
                 namespace_string_address[1] = {}
-                namespace_string_address[1].address = v.class_address + 12
+                namespace_string_address[1].address = v.class_address + namespace_offset
                 namespace_string_address[1].flags = flag_type
                 namespace_string_address = gg.getValues(namespace_string_address)
                 namespace_string_address = namespace_string_address[1].value
@@ -713,8 +715,10 @@ il2cppFields = {
         for i, v in pairs(class_headers) do
             if il2cppFields.arch.x64 then
                 class_headers[i].address = class_headers[i].address - 16
+                namespace_offset = 24
             else
                 class_headers[i].address = class_headers[i].address - 8
+                namespace_offset = 12
             end
         end
         gg.setRanges(gg.REGION_ANONYMOUS)
@@ -740,7 +744,7 @@ il2cppFields = {
         for i, v in ipairs(found_classes_sorted) do
             namespace_string_address = {}
             namespace_string_address[1] = {}
-            namespace_string_address[1].address = v.class_address + 12
+            namespace_string_address[1].address = v.class_address + namespace_offset
             namespace_string_address[1].flags = flag_type
             namespace_string_address = gg.getValues(namespace_string_address)
             namespace_string_address = namespace_string_address[1].value
