@@ -566,7 +566,7 @@ toolboxInstaller = {
         toolboxInstaller.githubSHAs = json.decode(content)
     end,
 }
-current_version = "1.1.8"
+current_version = "1.1.9"
 if pcall(toolboxInstaller.checkInstall) == false then
     toolboxInstaller.installToolbox()
 elseif toolboxInstaller.checkInstall() ~= current_version then
