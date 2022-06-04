@@ -462,7 +462,7 @@ toolboxInstaller = {
         for i, v in pairs(toolboxInstaller.filesTable) do
             toolboxInstaller.writeFile(v.file_name, toolboxInstaller.decodeBase64(v.file_data))
         end
-        file = io.open(configDataPath .. version, "w+")
+        file = io.open(configDataPath .. "version", "w+")
         file:write(current_version)
         file:close()
     end,
