@@ -1,4 +1,4 @@
------------------------- 
+------------------------
 ----Select Lib Start----
 ------------------------
 function select_lib()
@@ -8,20 +8,20 @@ function select_lib()
     local lib_selector_end = {}
     local check_libs = gg.getRangesList()
     for k, v in pairs(check_libs) do
-        if string.match(check_libs[k]["name"], "%.dat") or 
-			string.match(check_libs[k]["name"], "%[stack%]") or
-            string.match(check_libs[k]["name"], "/vendor/") or 
-			string.match(check_libs[k]["name"], "/system/") or
-            string.match(check_libs[k]["name"], "/dev/") or 
-			string.match(check_libs[k]["name"], "%[heap%]") or
-            string.match(check_libs[k]["name"], "%.art") or 
-			string.match(check_libs[k]["name"], "anon_inode:") or
-            string.match(check_libs[k]["name"], "deleted") or 
-			string.match(check_libs[k]["name"], "anon:") or
-            string.match(check_libs[k]["name"], "%.ttf") or 
-			string.match(check_libs[k]["name"], ".") == nil then
+        if string.match(check_libs[k]["name"], "%.dat") or
+            string.match(check_libs[k]["name"], "%[stack%]") or
+            string.match(check_libs[k]["name"], "/vendor/") or
+            string.match(check_libs[k]["name"], "/system/") or
+            string.match(check_libs[k]["name"], "/dev/") or
+            string.match(check_libs[k]["name"], "%[heap%]") or
+            string.match(check_libs[k]["name"], "%.art") or
+            string.match(check_libs[k]["name"], "anon_inode:") or
+            string.match(check_libs[k]["name"], "deleted") or
+            string.match(check_libs[k]["name"], "anon:") or
+            string.match(check_libs[k]["name"], "%.ttf") or
+            string.match(check_libs[k]["name"], ".") == nil then
             check_libs[k] = nil
-        elseif check_libs[k]["name"]:find(".so$") then
+        elseif check_libs[k]["name"]:find(".so$") or check_libs[k]["name"]:find(".apk$")  then
             get_size_array = {}
             for i, v in pairs(check_libs[k]) do
                 table.insert(get_size_array, v)
@@ -40,13 +40,13 @@ function select_lib()
                 if string.find(v["name"], "libil2cpp.so") or string.find(v["name"], "split_config.armeabi_v7a.apk") or
                     string.find(v["name"], "split_config.arm64_v8a.apk") then
                     menu_string = "〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️\nName: " ..
-                                    v["name"] .. "\nRange: " .. v.state .. "\nStart Address: " ..
-                                    hex_o(get_size_array[6]) .. "\nEnd Address: " .. hex_o(get_size_array[1]) ..
-                                    "\nSize: " .. size_display .. "\n〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️"
+                        v["name"] .. "\nRange: " .. v.state .. "\nStart Address: " ..
+                        hex_o(get_size_array[6]) .. "\nEnd Address: " .. hex_o(get_size_array[1]) ..
+                        "\nSize: " .. size_display .. "\n〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️〰️"
                 else
                     menu_string = "━━━━━━━━━━━━\nName: " .. v["name"] .. "\nRange: " .. v.state ..
-								"\nStart Address: " .. hex_o(get_size_array[6]) .. "\nEnd Address: " ..
-								hex_o(get_size_array[1]) .. "\nSize: " .. size_display .. "\n━━━━━━━━━━━━"
+                        "\nStart Address: " .. hex_o(get_size_array[6]) .. "\nEnd Address: " ..
+                        hex_o(get_size_array[1]) .. "\nSize: " .. size_display .. "\n━━━━━━━━━━━━"
                 end
                 if string.find(flibname, "-") and string.find(flibname, "==") then
                     local lib_search = string.find(flibname, "-")
@@ -113,7 +113,7 @@ dumpHandler = {
 	dumpHandler.createDirectory()
 	
 	---------------------------------------
-	]] --
+	]]  --
     createDirectory = function()
         directory_created = true
         for i, v in pairs(gg.getRangesList()) do
@@ -134,10 +134,10 @@ dumpHandler = {
 	dumpHandler.importDump()
 	
 	---------------------------------------
-	]] --
+	]]  --
     importDump = function()
         local startTime = os.time()
-        local fileName = gg.prompt({"ℹ️ Select Dump.cs ℹ️"}, nil, {"file"})
+        local fileName = gg.prompt({ "ℹ️ Select Dump.cs ℹ️" }, nil, { "file" })
         if fileName ~= nil then
             local tempDumpTable = {}
             local file = assert(io.open(fileName[1], "r"))
@@ -414,7 +414,7 @@ dumpHandler = {
 	dumpHandler.saveJSON()
 	
 	---------------------------------------
-	]] --
+	]]  --
     saveJSON = function()
         file = io.open(dataPath .. game_path .. "/processed_dump_" .. gg.getTargetInfo().versionName .. ".json", "w+")
         file:write(json.encode(dump_cs_table))
@@ -426,7 +426,7 @@ dumpHandler = {
 	dumpHandler.loadJSON()
 	
 	---------------------------------------
-	]] --
+	]]  --
     loadJSON = function()
         local file = assert(io.open(dataPath .. game_path .. "/processed_dump_" .. gg.getTargetInfo().versionName .. ".json", "r"))
         local content = file:read("*a")
@@ -439,7 +439,7 @@ dumpHandler = {
 	dumpHandler.loadDumpData()
 	
 	---------------------------------------
-	]] --
+	]]  --
     loadDumpData = function()
         if #dump_cs_table == 0 then
             select_lib()
@@ -457,21 +457,21 @@ dumpHandler = {
                     end
                 end
             end
-            local always_add = {"Boolean","Single","Double","Int16","Int32","Int64","UInt16","UInt32","UInt64","String","Byte","SByte","Char","Void"}
+            local always_add = { "Boolean", "Single", "Double", "Int16", "Int32", "Int64", "UInt16", "UInt32", "UInt64", "String", "Byte", "SByte", "Char", "Void" }
             for k, v in pairs(temp_types) do
                 local added = false
                 table.insert(bc_toolbox_method_types_all, v)
-                for i,value in pairs (always_add) do
-                if v == value then
-                    table.insert(bc_toolbox_method_types, v)
-                    added = true 
-                    break
-                end
+                for i, value in pairs(always_add) do
+                    if v == value then
+                        table.insert(bc_toolbox_method_types, v)
+                        added = true
+                        break
+                    end
                 end
                 if v:find("[A-Z_]") then
                 else
-                if added == false then
-                    table.insert(bc_toolbox_method_types, v)
+                    if added == false then
+                        table.insert(bc_toolbox_method_types, v)
                     end
                 end
             end
@@ -486,16 +486,16 @@ pluginManager = {
 	pluginManager.configMenu()
 	
 	---------------------------------------
-	]] --
+	]]  --
     configMenu = function()
-        local menu = gg.choice({"↕️ Change Menu Order", 
-								"🔢 Set Menu Item Limit",
-                                "🔗 Configure Default Plugins", 
-								"📥 Install Plugin", 
-								"✏️ Rename Plugin",
-                                "✅ Enable/Disable Plugins"}, 
-								nil, 
-								script_title .. "\n\nℹ️ Plugin Manager ℹ️")
+        local menu = gg.choice({ "↕️ Change Menu Order",
+            "🔢 Set Menu Item Limit",
+            "🔗 Configure Default Plugins",
+            "📥 Install Plugin",
+            "✏️ Rename Plugin",
+            "✅ Enable/Disable Plugins" },
+            nil,
+            script_title .. "\n\nℹ️ Plugin Manager ℹ️")
         if menu ~= nil then
             if menu == 1 then
                 pluginManager.menuOrder()
@@ -529,7 +529,7 @@ pluginManager = {
 	pluginManager.callPlugin(plugin_path, function_table, passed_data)
 	
 	---------------------------------------
-	]] --
+	]]  --
     callPlugin = function(plugin_path, function_table, passed_data)
         if _G[function_table] then
             _G[function_table].home(passed_data)
@@ -546,7 +546,7 @@ pluginManager = {
 	pluginManager.defaultHandler(handler, passed_data)
 	
 	---------------------------------------
-	]] --
+	]]  --
     defaultHandler = function(handler, passed_data)
         for i, v in pairs(pluginManager.toolboxPlugins) do
             if v.default_handler == handler then
@@ -560,7 +560,7 @@ pluginManager = {
 	pluginManager.initPluginManager()
 	
 	---------------------------------------
-	]] --
+	]]  --
     initPluginManager = function()
         local file = assert(io.open(configDataPath .. "plugin_manager.json", "r"))
         local content = file:read("*a")
@@ -574,7 +574,7 @@ pluginManager = {
 	pluginManager.initAllPluginManager()
 	
 	---------------------------------------
-	]] --
+	]]  --
     initAllPluginManager = function()
         local file = assert(io.open(configDataPath .. "plugin_manager_all_plugins.json", "r"))
         local content = file:read("*a")
@@ -587,7 +587,7 @@ pluginManager = {
 	pluginManager.menuOrder()
 	
 	---------------------------------------
-	]] --
+	]]  --
     menuOrder = function()
         if pcall(check_plugin_manager) == false then
             pluginManager.savePlugins()
@@ -629,7 +629,7 @@ pluginManager = {
 	pluginManager.defaultPlugins()
 	
 	---------------------------------------
-	]] --
+	]]  --
     defaultPlugins = function()
         local handler_indexes = {
             method = "",
@@ -665,12 +665,12 @@ pluginManager = {
                 class_results_handler = class_results_handler .. v.menu_name
             end
         end
-        local handlerMenu = gg.choice({method_results_handler, 
-										field_results_handler, 
-										enum_results_handler,
-                                        class_results_handler}, 
-										nil,
-										script_title .. "\n\nℹ️ Set default plugins. ℹ️")
+        local handlerMenu = gg.choice({ method_results_handler,
+            field_results_handler,
+            enum_results_handler,
+            class_results_handler },
+            nil,
+            script_title .. "\n\nℹ️ Set default plugins. ℹ️")
         if handlerMenu ~= nil then
             local handler_types = {
                 [1] = "method",
@@ -704,21 +704,21 @@ pluginManager = {
 	pluginManager.installPlugin()
 	
 	---------------------------------------
-	]] --
+	]]  --
     installPlugin = function()
-        local selectPluginLua = gg.prompt({script_title .. "\n\nℹ️ Select plugin to install. ℹ️"}, {gg.EXT_STORAGE .. "/Download/"}, {"file"})
+        local selectPluginLua = gg.prompt({ script_title .. "\n\nℹ️ Select plugin to install. ℹ️" }, { gg.EXT_STORAGE .. "/Download/" }, { "file" })
         if selectPluginLua ~= nil and selectPluginLua ~= gg.EXT_STORAGE .. "/Download/" then
             pluginManager.installingPlugin = true
             dofile(selectPluginLua[1])
             pluginManager.installingPlugin = false
-            local installMenu = gg.prompt({script_title .. "\n\nℹ️ Installing Plugin ℹ️\n\nMenu name for Plugin ", 
-										  "Name of function table containing plugins home() menu."},
-										  {
-										  pluginManager.installingPluginName, 
-										  pluginManager.installingPluginTable}, 
-										  {
-										  "text", 
-										  "text"})
+            local installMenu = gg.prompt({ script_title .. "\n\nℹ️ Installing Plugin ℹ️\n\nMenu name for Plugin ",
+                "Name of function table containing plugins home() menu." },
+                {
+                    pluginManager.installingPluginName,
+                    pluginManager.installingPluginTable },
+                {
+                    "text",
+                    "text" })
             if installMenu ~= nil then
                 if #installMenu[1] > 0 and #installMenu[2] > 0 then
                     local filename = selectPluginLua[1]:gsub(".+/(.+)", "%1")
@@ -755,7 +755,7 @@ pluginManager = {
 	pluginManager.removePlugin()
 	
 	---------------------------------------
-	]] --
+	]]  --
     removePlugin = function()
         local plugins_menu_items = {}
         for i, v in pairs(pluginManager.toolboxPlugins) do
@@ -764,10 +764,10 @@ pluginManager = {
         local removePluginMenu = gg.choice(plugins_menu_items, nil,
             script_title .. "\n\nℹ️ Select plugin to uninstall. ℹ️")
         if removePluginMenu ~= nil then
-            local confirmRemove = gg.choice({"✅ Yes", 
-											 "❌ No"}, 
-											 nil, 
-											 script_title .. "\n\nℹ️ Remove the " .. plugins_menu_items[removePluginMenu] .. " plugin? ℹ️")
+            local confirmRemove = gg.choice({ "✅ Yes",
+                "❌ No" },
+                nil,
+                script_title .. "\n\nℹ️ Remove the " .. plugins_menu_items[removePluginMenu] .. " plugin? ℹ️")
             if confirmRemove ~= nil then
                 if confirmRemove == 1 then
                     table.remove(pluginManager.toolboxPlugins, removePluginMenu)
@@ -783,7 +783,7 @@ pluginManager = {
 	pluginManager.savePlugins()
 	
 	---------------------------------------
-	]] --
+	]]  --
     savePlugins = function()
         file = io.open(configDataPath .. "plugin_manager.json", "w+")
         file:write(json.encode(pluginManager.toolboxPlugins))
@@ -795,7 +795,7 @@ pluginManager = {
 	pluginManager.saveAllPlugins()
 	
 	---------------------------------------
-	]] --
+	]]  --
     saveAllPlugins = function()
         file = io.open(configDataPath .. "plugin_manager_all_plugins.json", "w+")
         file:write(json.encode(pluginManager.toolboxAllPlugins))
@@ -807,7 +807,7 @@ pluginManager = {
 	pluginManager.saveMenuLimit()
 	
 	---------------------------------------
-	]] --
+	]]  --
     saveMenuLimit = function()
         file = io.open(configDataPath .. "plugin_manager_config.lua", "w+")
         file:write("pluginManager.menuItemLimit = " .. pluginManager.menuItemLimit)
@@ -819,7 +819,7 @@ pluginManager = {
 	pluginManager.renamePlugin()
 	
 	---------------------------------------
-	]] --
+	]]  --
     renamePlugin = function()
         local plugins_menu_items = {}
         for i, v in pairs(pluginManager.toolboxPlugins) do
@@ -827,8 +827,8 @@ pluginManager = {
         end
         local renamePluginMenu = gg.choice(plugins_menu_items, nil, script_title .. "\n\nℹ️ Select plugin to rename. ℹ️")
         if renamePluginMenu ~= nil then
-            local renamePrompt = gg.prompt({script_title .. "\n\nℹ️ Enter a new menu name for the plugin. ℹ️"},
-                {plugins_menu_items[renamePluginMenu]}, {"text"})
+            local renamePrompt = gg.prompt({ script_title .. "\n\nℹ️ Enter a new menu name for the plugin. ℹ️" },
+                { plugins_menu_items[renamePluginMenu] }, { "text" })
             if renamePrompt ~= nil then
                 pluginManager.toolboxPlugins[renamePluginMenu].menu_name = renamePrompt[1]
                 pluginManager.savePlugins()
@@ -841,9 +841,9 @@ pluginManager = {
 	pluginManager.menuLimit()
 	
 	---------------------------------------
-	]] --
+	]]  --
     menuLimit = function()
-        local menu = gg.prompt({script_title .. "\n\nℹ️ Set limit for number of items per menu. ℹ️\n\nSet menu item limit [0; 20]"}, {pluginManager.menuItemLimit}, {'number'})
+        local menu = gg.prompt({ script_title .. "\n\nℹ️ Set limit for number of items per menu. ℹ️\n\nSet menu item limit [0; 20]" }, { pluginManager.menuItemLimit }, { 'number' })
         if menu ~= nil then
             pluginManager.menuItemLimit = menu[1]
             pluginManager.saveMenuLimit()
@@ -855,7 +855,7 @@ pluginManager = {
 	pluginManager.togglePlugins()
 	
 	---------------------------------------
-	]] --
+	]]  --
     togglePlugins = function()
         if not pluginManager.toolboxAllPlugins then
             pluginManager.initAllPluginManager()
@@ -899,8 +899,8 @@ pluginManager = {
 	pluginManager.toolboxPlugins
 	
 	---------------------------------------
-	]] --
-    toolboxPlugins = {{
+	]]  --
+    toolboxPlugins = { {
         function_table = "staticValueFinder",
         menu_name = "🕵️‍ Static Value Finder",
         plugin_path = pluginsDataPath .. "plugin_bc_static_value_finder.lua"
@@ -952,7 +952,7 @@ pluginManager = {
         function_table = "saveListManager",
         menu_name = "📑 Save List Manager",
         plugin_path = pluginsDataPath .. "plugin_bc_save_list.lua"
-    }},
+    } },
     menuItemLimit = 0,
     returnHome = false,
     returnPluginTable = "",
@@ -962,7 +962,7 @@ pluginManager = {
 	pluginManager.home(menu_number)
 	
 	---------------------------------------
-	]] --
+	]]  --
     home = function(menu_number)
         if pluginManager.returnHome == true then
             _G[pluginManager.returnPluginTable].home()

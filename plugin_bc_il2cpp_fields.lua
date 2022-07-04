@@ -274,7 +274,7 @@ il2cppFields = {
             ::pick_ns::
             choose_namespace = gg.choice(namespace_names,nil, script_title .. "\n\nℹ️ Select Class ℹ️\nClasses with active instances will have pointers. If the class you want has no pointers then got to a place in the game the values would be used and try again.")
             if choose_namespace == nil then
-                goto pick_ns
+                goto none
             else
                 edit_namespace = found_classes_sorted[choose_namespace].namespace
                 gg.refineNumber(found_classes_sorted[choose_namespace].class_address, flag_type)
@@ -556,36 +556,58 @@ il2cppFields = {
             field_name = working_field_name,
             value_type = save_list_selected[1].flags
         }
-        menu_items[#menu_items + 1] = script_title .. "\n\nℹ️ Create Edit ℹ\n" .. il2cppFields.gg_flags[save_list_selected[1].flags] .. " " .. save_list_selected[1].name
-        menu_values[#menu_values + 1] = save_list_selected[1].value
-        menu_types[#menu_types + 1] = "number"
-        menu_names[#menu_names + 1] = save_list_selected[1].name
-        menu_items[#menu_items + 1] = "Freeze"
-        menu_items[#menu_items + 1] = "Edit All Instances (Only select one)"
-        menu_items[#menu_items + 1] = "Edit All Instances Address + 4 X4 (Only select one)"
-        menu_items[#menu_items + 1] = "Edit All Instances With Same Initial Value (Only select one)"
-        menu_items[#menu_items + 1] = "Edit All Instances That Have Value Below (Only select one)"
-        menu_items[#menu_items + 1] = "Edit Instances That Have This Value"
-        menu_values[#menu_values + 1] = false
-        menu_types[#menu_types + 1] = "checkbox"
-        menu_values[#menu_values + 1] = false
-        menu_types[#menu_types + 1] = "checkbox"
-        menu_values[#menu_values + 1] = false
-        menu_types[#menu_types + 1] = "checkbox"
-        menu_values[#menu_values + 1] = false
-        menu_types[#menu_types + 1] = "checkbox"
-        menu_values[#menu_values + 1] = false
-        menu_types[#menu_types + 1] = "checkbox"
-        menu_values[#menu_values + 1] = ""
-        menu_types[#menu_types + 1] = "number"
+        
+        
+        
+        menu_items[1] = script_title .. "\n\nℹ️ Create Edit ℹ\n" .. il2cppFields.gg_flags[save_list_selected[1].flags] .. " " .. save_list_selected[1].name
+        menu_values[1] = save_list_selected[1].value
+        menu_types[1] = "number"
+        menu_names[1] = save_list_selected[1].name
+        
+        menu_items[2] = "Freeze"
+        menu_values[2] = false
+        menu_types[2] = "checkbox"
+        
+        menu_items[3] = "Edit All Instances (Only select one)"
+        menu_values[3] = false
+        menu_types[3] = "checkbox"
+        
+        menu_items[4] = "Edit All Instances Address + 4 X4 (Only select one)"
+        menu_values[4] = false
+        menu_types[4] = "checkbox"
+        
+        menu_items[5] = "Edit All Instances With Same Initial Value (Only select one)"
+        menu_values[5] = false
+        menu_types[5] = "checkbox"
+        
+        menu_items[6] = "Edit All Instances That Have Value Below (Only select one)"
+        menu_values[6] = false
+        menu_types[6] = "checkbox"
+        
+        menu_items[7] = "Edit Instances That Have This Value"
+        menu_values[7] = ""
+        menu_types[7] = "number"
+      
+        menu_items[8] = "Edit All Instances In Range Below (Only select one)"
+        menu_values[8] = false
+        menu_types[8] = "checkbox"
+  
+        menu_items[9] = "Minimum Value"
+        menu_values[9] = ""
+        menu_types[9] = "number"
+        
+        menu_items[10] = "Maximum Value"
+        menu_values[10] = ""
+        menu_types[10] = "number"
+        
         local menu = gg.prompt(menu_items, menu_values, menu_types)
         if menu ~= nil then
-            if menu[#menu - 5] == true then
+            if menu[2] == true then
                 save_edit_values.freeze = true
             else
                 save_edit_values.freeze = false
             end
-            if menu[#menu - 3] == true then
+            if menu[4] == true then
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
                     save_list_all[i].address = save_list_all[i].address + 4
@@ -596,7 +618,7 @@ il2cppFields = {
                 gg.addListItems(save_list_all)
                 save_edit_values.edit_type = "edit_all_x4"
                 save_edit_values.edit_value = menu[1]
-            elseif menu[#menu - 4] == true then
+            elseif menu[3] == true then
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
                     save_list_all[i].value = menu[1]
@@ -606,7 +628,7 @@ il2cppFields = {
                 gg.addListItems(save_list_all)
                 save_edit_values.edit_type = "edit_all"
                 save_edit_values.edit_value = menu[1]
-            elseif menu[#menu - 2] == true then
+            elseif menu[5] == true then
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
                     if save_list_all[i].value == save_list_selected[1].value then
@@ -619,10 +641,10 @@ il2cppFields = {
                 save_edit_values.edit_type = "edit_all_that_equal"
                 save_edit_values.edit_value = menu[1]
                 save_edit_values.must_equal = save_list_selected[1].value
-            elseif menu[#menu - 1] == true then
+            elseif menu[6] == true then
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
-                    if save_list_all[i].value == menu[#menu] then
+                    if save_list_all[i].value == menu[7] then
                         save_list_all[i].value = menu[1]
                         save_list_all[i].freeze = save_edit_values.freeze
                     end
@@ -631,7 +653,21 @@ il2cppFields = {
                 gg.addListItems(save_list_all)
                 save_edit_values.edit_type = "edit_all_that_equal"
                 save_edit_values.edit_value = menu[1]
-                save_edit_values.must_equal = menu[#menu]
+                save_edit_values.must_equal = menu[7]
+            elseif menu[8] == true then
+                local save_list_all = gg.getListItems()
+                for i, v in pairs(save_list_all) do
+                    if save_list_all[i].value >= tonumber(menu[9]) and save_list_all[i].value <= tonumber(menu[10])  then
+                        save_list_all[i].value = menu[1]
+                        save_list_all[i].freeze = save_edit_values.freeze
+                    end
+                end
+                gg.setValues(save_list_all)
+                gg.addListItems(save_list_all)
+                save_edit_values.edit_type = "edit_all_in_range"
+                save_edit_values.edit_value = menu[1]
+                save_edit_values.must_be_greater = menu[9]
+                save_edit_values.must_be_less_than = menu[10]
             else
                 for i, v in pairs(save_list_selected) do
                     save_list_selected[i].value = menu[1]
@@ -973,9 +1009,8 @@ il2cppFields = {
         for i, v in pairs(sorted_instance_headers) do
             load_field_values[i] = v
             load_field_values[i].address = v.value + edit_offset
-            load_field_values[i].flags = edit_type
+            load_field_values[i].flags = saved_edit_table.value_type
         end
-        gg.setValues(load_field_values)
         gg.addListItems(load_field_values)
         if saved_edit_table.edit_type == "edit_all_x4" then
             local save_list_all = gg.getListItems()
@@ -1012,6 +1047,16 @@ il2cppFields = {
             end
             gg.setValues(save_list_all)
             gg.addListItems(save_list_all)
+         elseif saved_edit_table.edit_type == "edit_all_in_range" then
+            local save_list_all = gg.getListItems()
+            for i, v in pairs(save_list_all) do
+                if v.value >= tonumber(saved_edit_table.must_be_greater) and v.value <= tonumber(saved_edit_table.must_be_less_than)  then
+                    save_list_all[i].value = saved_edit_table.edit_value
+                    save_list_all[i].freeze = saved_edit_table.freeze
+                end
+            end
+            gg.setValues(save_list_all)
+            gg.addListItems(save_list_all) 
         end
         fields = {}
         ::none::
