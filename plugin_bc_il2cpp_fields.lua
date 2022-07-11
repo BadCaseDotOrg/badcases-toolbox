@@ -1,5 +1,4 @@
 gg.clearList()
---
 il2cppFields = {
     --[[
 	---------------------------------------
@@ -106,10 +105,11 @@ il2cppFields = {
 	---------------------------------------
 	]] --
     getMethodTypes = function()
+        il2cppFields.method_types = {}
         for i, v in pairs(il2cppFields.get_method_searches) do
             gg.setRanges(gg.REGION_OTHER)
             gg.clearResults()
-            gg.searchNumber(il2cppFields.createSearch(v[2]), gg.TYPE_BYTE, false, gg.SIGN_EQUAL, range_start, range_end)
+            gg.searchNumber(":" .. string.char(0) .. v[2] .. string.char(0), gg.TYPE_BYTE, false, gg.SIGN_EQUAL, range_start, range_end)
             local string_address = gg.getResults(1, 1)
             string_address = string_address[1].address
             gg.clearResults()
@@ -131,17 +131,25 @@ il2cppFields = {
                 get_type2[1].address = get_type[1].value
                 get_type2[1].flags = gg.TYPE_DWORD
                 get_type2 = gg.getValues(get_type2)
-                if #tostring(get_type2[1].value) > 8 then
-                    get_type2 = {}
-                    get_type2[1] = {}
-                    get_type2[1].address = get_type[1].value + 4
-                    get_type2[1].flags = gg.TYPE_DWORD
-                    get_type2 = gg.getValues(get_type2)
-                    for index = 1, 10 do
-                        il2cppFields.method_types[tostring(get_type2[1].value + index)] = v[1]
+                local final_type
+                if #tostring(get_type2[1].value) > 6 then
+                    if il2cppFields.arch.x64 then
+                        get_type2[1].flags = gg.TYPE_QWORD
+                        get_type2 = gg.getValues(get_type2)
                     end
+                    local get_type3 = {}
+                    get_type3[1] = {}
+                    get_type3[1].address = get_type2[1].value
+                    get_type3[1].flags = gg.TYPE_DWORD
+                    get_type3 = gg.getValues(get_type3)
+                    for index = 1, 10 do
+                        il2cppFields.method_types[tostring(get_type3[1].value + index)] = v[1]
+                    end
+                    final_type = get_type3[1].value
+                else
+                    final_type = get_type2[1].value
                 end
-                il2cppFields.method_types[tostring(get_type2[1].value)] = v[1]
+                il2cppFields.method_types[tostring(final_type)] = v[1]
             end
         end
         local file = io.open(il2cppFields.savePath .. gg.getTargetPackage() .. "_" .. gg.getTargetInfo().versionCode .. "_method_types.lua", "w+")
@@ -196,345 +204,331 @@ il2cppFields = {
         end
         if class_string_search ~= nil or continue == true then
             if continue == true then
-                goto do_more
-            end
-            working_class = class_string_search[1]
-            gg.setRanges(gg.REGION_OTHER)
-            gg.clearResults()
-            gg.searchNumber(il2cppFields.createSearch(class_string_search[1]), gg.TYPE_BYTE, false, gg.SIGN_EQUAL, range_start, range_end)
-            string_address = gg.getResults(1, 1)
-            if gg.getResultsCount() == 0 then
-                none_found = true
-                goto none
-            end
-            string_address = string_address[1].address
-            gg.clearResults()
-            gg.setRanges(gg.REGION_C_ALLOC)
-            gg.searchNumber(string_address, flag_type)
-            class_headers = gg.getResults(gg.getResultsCount())
-            for i, v in pairs(class_headers) do
-                if il2cppFields.arch.x64 then
-                    class_headers[i].address = class_headers[i].address - 16
-                    namespace_offset = 24
-                else
-                    class_headers[i].address = class_headers[i].address - 8
-                    namespace_offset = 12
-                end
-            end
-            gg.setRanges(gg.REGION_ANONYMOUS)
-            gg.loadResults(class_headers)
-            gg.searchPointer(0)
-            instance_headers = gg.getResults(gg.getResultsCount())
-            found_classes = {}
-            for i, v in ipairs(instance_headers) do
-                if not found_classes[tostring(v.value)] then
-                    found_classes[tostring(v.value)] = 0
-                else
-                    found_classes[tostring(v.value)] = found_classes[tostring(v.value)] + 1
-                end
-            end
-            found_classes_sorted = {}
-            for k, v in pairs(found_classes) do
-                found_classes_sorted[#found_classes_sorted + 1] = {
-                    class_address = k,
-                    pointers_to = v
-                }
-            end
-            namespace_names = {}
-            for i, v in ipairs(found_classes_sorted) do
-                namespace_string_address = {}
-                namespace_string_address[1] = {}
-                namespace_string_address[1].address = v.class_address + namespace_offset
-                namespace_string_address[1].flags = flag_type
-                namespace_string_address = gg.getValues(namespace_string_address)
-                namespace_string_address = namespace_string_address[1].value
-                get_namespace_name = {}
-                offset = 0
-                count = 1
-                repeat
-                    get_namespace_name[count] = {}
-                    get_namespace_name[count].address = namespace_string_address + offset
-                    get_namespace_name[count].flags = gg.TYPE_BYTE
-                    count = count + 1
-                    offset = offset + 1
-                until (count == 100)
-                get_namespace_name = gg.getValues(get_namespace_name)
-                namespace_name = ""
-                for index, value in pairs(get_namespace_name) do
-                    if value.value >= 0 and value.value <= 255 then
-                        namespace_name = namespace_name .. string.char(value.value)
-                    end
-                    if value.value == 0 then
-                        break
-                    end
-                end
-                namespace_names[i] = namespace_name .. " Pointers(" .. found_classes_sorted[i].pointers_to .. ")"
-                found_classes_sorted[i].namespace = namespace_name
-            end
-            ::pick_ns::
-            choose_namespace = gg.choice(namespace_names,nil, script_title .. "\n\nℹ️ Select Class ℹ️\nClasses with active instances will have pointers. If the class you want has no pointers then got to a place in the game the values would be used and try again.")
-            if choose_namespace == nil then
-                goto none
             else
-                edit_namespace = found_classes_sorted[choose_namespace].namespace
-                gg.refineNumber(found_classes_sorted[choose_namespace].class_address, flag_type)
-                instance_headers = gg.getResults(gg.getResultCount())
+                working_class = class_string_search[1]
+                gg.setRanges(gg.REGION_OTHER)
+                gg.clearResults()
+                gg.searchNumber(il2cppFields.createSearch(class_string_search[1]), gg.TYPE_BYTE, false, gg.SIGN_EQUAL,
+                    range_start, range_end)
+                string_address = gg.getResults(1, 1)
             end
-            if gg.getResultsCount() == 0 then
-                none_found = true
-                goto none
-            end
-            class_header = instance_headers[1].value
-            first_field_address = {}
-            first_field_address[1] = {}
-            if il2cppFields.arch.x64 then
-                first_field_address[1].address = class_header + 0x80
-            else
-                first_field_address[1].address = class_header + 0x40
-            end
-            first_field_address[1].flags = flag_type
-            first_field_address = gg.getValues(first_field_address)
-            first_field_address = first_field_address[1].value
-            if il2cppFields.arch.x64 then
-                get_num_fields_start = first_field_address + 24
-                get_num_fields_offset = 32
-            else
-                get_num_fields_start = first_field_address + 12
-                get_num_fields_offset = 20
-            end
-            num_offset = 0
-            num_field_data = {}
-            for i = 1, 1000 do
-                num_field_data[i] = {}
-                num_field_data[i].address = get_num_fields_start + num_offset
-                num_field_data[i].flags = gg.TYPE_DWORD
-                num_offset = num_offset + get_num_fields_offset
-            end
-            num_field_data = gg.getValues(num_field_data)
-            field_counter = 0
-            last_field_offset = 0
-            break_count = 0
-            for i, v in pairs(num_field_data) do
-                if v.value >= last_field_offset or v.value == 0 then
-                    if v.value >= last_field_offset then
-                        break_count = 0
-                        last_field_offset = v.value
-                    end
-                    field_counter = field_counter + 1
-                else
-                    break_count = break_count + 1
-                    if break_count == 2 then
-                        break
-                    end
+            if gg.getResultsCount() > 0 or continue == true then
+                if continue == true then
+                    goto do_more
                 end
-            end
-            field_data = ""
-            field_name_pointer = ""
-            type_pointer = ""
-            class_pointer = ""
-            field_offset = ""
-            fields = {}
-            number_of_fields = field_counter
-            current_address = first_field_address
-            for i = 1, number_of_fields do
-                if il2cppFields.arch.x64 then
-                    field_data = {}
-                    field_data[1] = {}
-                    field_data[1].address = current_address
-                    field_data[1].flags = gg.TYPE_QWORD
-                    current_address = current_address + 4
-                    field_data[2] = {}
-                    field_data[2].address = current_address
-                    field_data[2].flags = gg.TYPE_DWORD
-                    current_address = current_address + 4
-                    field_data[3] = {}
-                    field_data[3].address = current_address
-                    field_data[3].flags = gg.TYPE_QWORD
-                    current_address = current_address + 4
-                    field_data[4] = {}
-                    field_data[4].address = current_address
-                    field_data[4].flags = gg.TYPE_DWORD
-                    current_address = current_address + 4
-                    field_data[5] = {}
-                    field_data[5].address = current_address
-                    field_data[5].flags = gg.TYPE_DWORD
-                    current_address = current_address + 4
-                    field_data[6] = {}
-                    field_data[6].address = current_address
-                    field_data[6].flags = gg.TYPE_DWORD
-                    current_address = current_address + 4
-                    field_data[7] = {}
-                    field_data[7].address = current_address
-                    field_data[7].flags = gg.TYPE_DWORD
-                    current_address = current_address + 4
-                    field_data[8] = {}
-                    field_data[8].address = current_address
-                    field_data[8].flags = gg.TYPE_DWORD
-                    current_address = current_address + 4
-                    field_data = gg.getValues(field_data)
-                    field_name_pointer = field_data[1].value
-                    type_pointer = field_data[3].value
-                    class_pointer = field_data[5].value
-                    field_offset = field_data[7].value
-                else
-                    field_data = {}
-                    field_data[1] = {}
-                    field_data[1].address = current_address
-                    field_data[1].flags = gg.TYPE_DWORD
-                    current_address = current_address + 4
-                    field_data[2] = {}
-                    field_data[2].address = current_address
-                    field_data[2].flags = gg.TYPE_DWORD
-                    current_address = current_address + 4
-                    field_data[3] = {}
-                    field_data[3].address = current_address
-                    field_data[3].flags = gg.TYPE_DWORD
-                    current_address = current_address + 4
-                    field_data[4] = {}
-                    field_data[4].address = current_address
-                    field_data[4].flags = gg.TYPE_DWORD
-                    current_address = current_address + 4
-                    field_data[5] = {}
-                    field_data[5].address = current_address
-                    field_data[5].flags = gg.TYPE_DWORD
-                    current_address = current_address + 4
-                    field_data = gg.getValues(field_data)
-                    field_name_pointer = field_data[1].value
-                    type_pointer = field_data[2].value
-                    class_pointer = field_data[3].value
-                    field_offset = field_data[4].value
-                end
-                get_field_name = {}
-                offset = 0
-                count = 1
-                repeat
-                    get_field_name[count] = {}
-                    get_field_name[count].address = field_name_pointer + offset
-                    get_field_name[count].flags = gg.TYPE_BYTE
-                    count = count + 1
-                    offset = offset + 1
-                until (count == 100)
-                get_field_name = gg.getValues(get_field_name)
-                field_name = ""
-                for index, value in pairs(get_field_name) do
-                    if value.value >= 0 and value.value <= 255 then
-                        field_name = field_name .. string.char(value.value)
-                    end
-                    if value.value == 0 then
-                        break
-                    end
-                end
-                get_type = {}
-                get_type[1] = {}
-                get_type[1].address = type_pointer
-                get_type[1].flags = gg.TYPE_DWORD
-                field_type = gg.getValues(get_type)
-                field_type = field_type[1].value
-                if #tostring(field_type) > 8 then
-                    get_type = {}
-                    get_type[1] = {}
-                    get_type[1].address = type_pointer + 4
-                    get_type[1].flags = gg.TYPE_DWORD
-                    field_type = gg.getValues(get_type)
-                    field_type = field_type[1].value
-                end
-                if il2cppFields.method_types[tostring(field_type)] == "float" then
-                    value_type = gg.TYPE_FLOAT
-                elseif il2cppFields.method_types[tostring(field_type)] == "double" then
-                    value_type = gg.TYPE_DOUBLE
-                elseif (field_offset % 2 ~= 0) then
-                    value_type = gg.TYPE_BYTE
-                else
-                    value_type = gg.TYPE_DWORD
-                end
-                if value_type and field_offset and string.find(field_name, "[A-Za-z]") then
-                    type_menu = "?" .. field_type .. "?"
-                    local ask_type = false
-                    if il2cppFields.method_types[tostring(field_type)] then
-                        type_menu = il2cppFields.method_types[tostring(field_type)]
+                string_address = string_address[1].address
+                gg.clearResults()
+                gg.setRanges(gg.REGION_C_ALLOC)
+                gg.searchNumber(string_address, flag_type)
+                class_headers = gg.getResults(gg.getResultsCount())
+                for i, v in pairs(class_headers) do
+                    if il2cppFields.arch.x64 then
+                        class_headers[i].address = class_headers[i].address - 16
+                        namespace_offset = 24
                     else
-                        ask_type = true
+                        class_headers[i].address = class_headers[i].address - 8
+                        namespace_offset = 12
                     end
-                    fields[#fields + 1] = {
-                        field_name = field_name,
-                        field_offset = il2cppFields.f_hex(field_offset),
-                        field_type = value_type,
-                        type_menu = type_menu,
-                        ask_type = ask_type
+                end
+                gg.setRanges(gg.REGION_ANONYMOUS)
+                gg.loadResults(class_headers)
+                gg.searchPointer(0)
+                instance_headers = gg.getResults(gg.getResultsCount())
+                found_classes = {}
+                for i, v in ipairs(instance_headers) do
+                    if not found_classes[tostring(v.value)] then
+                        found_classes[tostring(v.value)] = 0
+                    else
+                        found_classes[tostring(v.value)] = found_classes[tostring(v.value)] + 1
+                    end
+                end
+                found_classes_sorted = {}
+                for k, v in pairs(found_classes) do
+                    found_classes_sorted[#found_classes_sorted + 1] = {
+                        class_address = k,
+                        pointers_to = v
                     }
                 end
-            end
-            gg.loadResults(instance_headers)
-            gg.searchPointer(0)
-            pointers_to_instances = gg.getResults(gg.getResultsCount())
-            sorted_instance_headers = {}
-            added_headers = {}
-            for i, v in pairs(pointers_to_instances) do
-                if not added_headers[v.value] then
-                    added_headers[v.value] = v.value
-                    table.insert(sorted_instance_headers, v)
-                end
-            end
-            gg.loadResults(sorted_instance_headers)
-            sorted_instance_headers = gg.getResults(gg.getResultsCount())
-            select_field_items = {}
-            for i, v in pairs(fields) do
-                select_field_items[i] = "🔘 " .. v.type_menu .. " " .. v.field_name .. " " .. v.field_offset
-            end
-            ::do_more::
-            gg.loadResults(sorted_instance_headers)
-            select_field_menu = gg.choice(select_field_items, nil,
-                script_title .. "\n\nℹ️ " .. #sorted_instance_headers .. " Instances Found ℹ️\nClass Name: " .. class_string_search[1])
-            if select_field_menu ~= nil then
-                working_offset = fields[select_field_menu].field_offset
-                working_field_name = fields[select_field_menu].field_name
-                load_field_values = {}
-                local gg_types = {
-                    [1] = 4,
-                    [2] = 16,
-                    [3] = 64,
-                    [4] = 2,
-                    [5] = 1,
-                    [6] = 32,
-                    [7] = 8
-                }
-                local type_menu_items = {
-                    [1] = "TYPE_DWORD",
-                    [2] = "TYPE_FLOAT",
-                    [3] = "TYPE_DOUBLE",
-                    [4] = "TYPE_WORD",
-                    [5] = "TYPE_BYTE",
-                    [6] = "TYPE_QWORD",
-                    [7] = "TYPE_XOR"
-                }
-                ::pick_type::
-                local type_menu = gg.choice(type_menu_items)
-                if type_menu == nil then
-                    goto pick_type
-                else
-                    value_type = gg_types[type_menu]
-                    for i, v in pairs(sorted_instance_headers) do
-                        load_field_values[i] = v
-                        load_field_values[i].address = v.value + fields[select_field_menu].field_offset
-                        load_field_values[i].flags = value_type
-                        load_field_values[i].name = "Instance " .. i .. ": " .. select_field_items[select_field_menu]
+                namespace_names = {}
+                for i, v in ipairs(found_classes_sorted) do
+                    namespace_string_address = {}
+                    namespace_string_address[1] = {}
+                    namespace_string_address[1].address = v.class_address + namespace_offset
+                    namespace_string_address[1].flags = flag_type
+                    namespace_string_address = gg.getValues(namespace_string_address)
+                    namespace_string_address = namespace_string_address[1].value
+                    get_namespace_name = {}
+                    offset = 0
+                    count = 1
+                    repeat
+                        get_namespace_name[count] = {}
+                        get_namespace_name[count].address = namespace_string_address + offset
+                        get_namespace_name[count].flags = gg.TYPE_BYTE
+                        count = count + 1
+                        offset = offset + 1
+                    until (count == 100)
+                    get_namespace_name = gg.getValues(get_namespace_name)
+                    namespace_name = ""
+                    for index, value in pairs(get_namespace_name) do
+                        if value.value >= 0 and value.value <= 255 then
+                            namespace_name = namespace_name .. string.char(value.value)
+                        end
+                        if value.value == 0 then
+                            break
+                        end
                     end
-                    gg.addListItems(load_field_values)
+                    namespace_names[i] = namespace_name .. " Pointers(" .. found_classes_sorted[i].pointers_to .. ")"
+                    found_classes_sorted[i].namespace = namespace_name
+                end
+                ::pick_ns::
+                choose_namespace = gg.choice(namespace_names, nil, script_title .. "\n\nℹ️ Select Namespace ℹ️\nIf the class you want has no active instances then got to a place in the game the values would be used and try again.")
+                if choose_namespace == nil then
+                else
+                    edit_namespace = found_classes_sorted[choose_namespace].namespace
+                    gg.refineNumber(found_classes_sorted[choose_namespace].class_address, flag_type)
+                    instance_headers = gg.getResults(gg.getResultCount())
+                end
+                if gg.getResultsCount() > 0 and choose_namespace ~= nil then
+                    class_header = instance_headers[1].value
+                    il2cppFields.current_fields = {}
+                    ::above::
+                    local field_count = {}
+                    field_count[1] = {}
+                    field_count[1].address = class_header + il2cppFields.fieldOffsets.fieldCount
+                    field_count[1].flags = gg.TYPE_DWORD
+                    field_count = gg.getValues(field_count)
+                    field_count = field_count[1].value
+                    local fields_pointer = {}
+                    fields_pointer[1] = {}
+                    fields_pointer[1].address = class_header + il2cppFields.fieldOffsets.fieldPointer
+                    fields_pointer[1].flags = flag_type
+                    local fields_pointer_address = gg.getValues(fields_pointer)
+                    local fields_start = {}
+                    fields_start[1] = {}
+                    fields_start[1].address = fields_pointer_address[1].value
+                    fields_start[1].flags = flag_type
+                    fields_start = gg.getValues(fields_start)
+                    fields_start = fields_start[1].address
+                    local offset = 0
+                    gg.clearResults()
+                    gg.setRanges(gg.REGION_C_ALLOC)
+                    local getall
+                    ::menu2::
+                    local menu = gg.choice({"Yes (SLOW)", "No (Faster)"}, nil, script_title .. "\n\nℹ️ Do you want to try and get additional field types from memory? All fields will be retrieved regardless.  ℹ️")
+                    if menu == nil then
+                        goto menu2
+                    else
+                        if menu == 1 then
+                            getall = true
+                            if not getFieldsPointerSearch then
+                                gg.searchNumber(
+                                    range_start .. "~" .. range_end .. ";" .. range_start .. "~" .. range_end .. "::13",
+                                    flag_type)
+                                getFieldsPointerSearch = gg.getResults(gg.getResultsCount())
+                            end
+                        end
+                    end
+                    for i = 1, field_count do
+                        local field_name_pointer = {}
+                        field_name_pointer[1] = {}
+                        field_name_pointer[1].address = fields_start + offset
+                        field_name_pointer[1].flags = flag_type
+                        field_name_pointer = gg.getValues(field_name_pointer)
+                        local field_type = ""
+                        if getall == true then
+                            gg.loadResults(getFieldsPointerSearch)
+                            gg.refineNumber(field_name_pointer[1].value .. ";0~~0::5", flag_type, nil, nil, nil, nil, 1)
+                            type_pointer = gg.getResults(1, 1)
+                            if #type_pointer > 0 then
+                                if il2cppFields.retrieved_field_types[tostring(type_pointer[1].value)] then
+                                    field_type = il2cppFields.retrieved_field_types[tostring(type_pointer[1].value)]
+                                else
+                                    local first_letter = {}
+                                    first_letter[1] = {}
+                                    first_letter[1].address = type_pointer[1].value
+                                    first_letter[1].flags = gg.TYPE_BYTE
+                                    first_letter = gg.getValues(first_letter)
+                                    local count = 0
+                                    repeat
+                                        local current_letter = {}
+                                        current_letter[1] = {}
+                                        current_letter[1].address = first_letter[1].address + count
+                                        current_letter[1].flags = gg.TYPE_BYTE
+                                        current_letter = gg.getValues(current_letter)
+                                        count = count + 1
+                                        if current_letter[1].value > 0 and current_letter[1].value <= 255 then
+                                            field_type = field_type .. string.char(current_letter[1].value)
+                                        end
+                                    until (current_letter[1].value == 0)
+                                end
+                            end
+                        end
+                        if #field_type > 2 then
+                            il2cppFields.retrieved_field_types[tostring(type_pointer[1].value)] = field_type
+                        else
+                            local get_type = {}
+                            get_type[1] = {}
+                            if il2cppFields.arch.x64 then
+                                get_type[1].address = fields_start + offset + 8
+                            else
+                                get_type[1].address = fields_start + offset + 4
+                            end
+                            get_type[1].flags = flag_type
+                            get_type = gg.getValues(get_type)
+                            local get_type2 = {}
+                            get_type2[1] = {}
+                            get_type2[1].address = get_type[1].value
+                            get_type2[1].flags = gg.TYPE_DWORD
+                            get_type2 = gg.getValues(get_type2)
+                            final_type = get_type2[1].value
+                            if #tostring(final_type) > 6 then
+                                if il2cppFields.arch.x64 then
+                                    get_type2[1].flags = gg.TYPE_QWORD
+                                    get_type2 = gg.getValues(get_type2)
+                                end
+                                local get_type3 = {}
+                                get_type3[1] = {}
+                                get_type3[1].address = get_type2[1].value
+                                get_type3[1].flags = gg.TYPE_DWORD
+                                get_type3 = gg.getValues(get_type3)
+                                get_type3 = get_type3[1].value
+                                final_type = get_type3
+                            end
+                            if il2cppFields.method_types[tostring(final_type)] then
+                                field_type = il2cppFields.method_types[tostring(final_type)]
+                            else
+                                field_type = tostring(final_type)
+                            end
+                        end
+                        local field_offset = {}
+                        field_offset[1] = {}
+                        field_offset[1].address = field_name_pointer[1].address + il2cppFields.fieldOffsets.fieldOffset
+                        field_offset[1].flags = gg.TYPE_DWORD
+                        field_offset = gg.getValues(field_offset)
+                        field_offset = field_offset[1].value
+                        offset = offset + il2cppFields.fieldOffsets.fieldNext
+                        local first_letter = {}
+                        first_letter[1] = {}
+                        first_letter[1].address = field_name_pointer[1].value
+                        first_letter[1].flags = gg.TYPE_BYTE
+                        first_letter = gg.getValues(first_letter)
+                        local field_name = ""
+                        local count = 0
+                        repeat
+                            local current_letter = {}
+                            current_letter[1] = {}
+                            current_letter[1].address = first_letter[1].address + count
+                            current_letter[1].flags = gg.TYPE_BYTE
+                            current_letter = gg.getValues(current_letter)
+                            count = count + 1
+                            if current_letter[1].value > 0 and current_letter[1].value <= 255 then
+                                field_name = field_name .. string.char(current_letter[1].value)
+                            end
+                        until (current_letter[1].value == 0)
+                        if il2cppFields.method_types[tostring(field_type)] == "float" then
+                            value_type = gg.TYPE_FLOAT
+                        elseif il2cppFields.method_types[tostring(field_type)] == "double" then
+                            value_type = gg.TYPE_DOUBLE
+                        elseif (field_offset % 2 ~= 0) then
+                            value_type = gg.TYPE_BYTE
+                        else
+                            value_type = gg.TYPE_DWORD
+                        end
+                        local ask_type = false
+                        if il2cppFields.method_types[tostring(field_type)] then
+                            type_menu = il2cppFields.method_types[tostring(field_type)]
+                        else
+                            ask_type = true
+                        end
+                        if not fields then
+                            fields = {}
+                        end
+                        fields[#fields + 1] = {
+                            field_name = field_name,
+                            field_offset = il2cppFields.f_hex(field_offset),
+                            field_type = value_type,
+                            type_menu = field_type,
+                            ask_type = ask_type
+                        }
+                    end
+                end
+                gg.loadResults(instance_headers)
+                gg.searchPointer(0)
+                pointers_to_instances = gg.getResults(gg.getResultsCount())
+                sorted_instance_headers = {}
+                added_headers = {}
+                for i, v in pairs(pointers_to_instances) do
+                    if not added_headers[v.value] then
+                        added_headers[v.value] = v.value
+                        table.insert(sorted_instance_headers, v)
+                    end
+                end
+                gg.loadResults(sorted_instance_headers)
+                sorted_instance_headers = gg.getResults(gg.getResultsCount())
+                select_field_items = {}
+                if choose_namespace ~= nil then
+                    for i, v in pairs(fields) do
+                        select_field_items[i] = "🔘 " .. v.type_menu .. " " .. v.field_name .. " " .. v.field_offset
+                    end
+                end
+                ::do_more::
+                if choose_namespace ~= nil then
+                    gg.loadResults(sorted_instance_headers)
+                    select_field_menu = gg.choice(select_field_items, nil,
+                        script_title .. "\n\nℹ️ " .. #sorted_instance_headers .. " Instances Found ℹ️\nClass Name: " .. class_string_search[1])
+                    if select_field_menu ~= nil then
+                        working_offset = fields[select_field_menu].field_offset
+                        working_field_name = fields[select_field_menu].field_name
+                        load_field_values = {}
+                        local gg_types = {
+                            [1] = 4,
+                            [2] = 16,
+                            [3] = 64,
+                            [4] = 2,
+                            [5] = 1,
+                            [6] = 32,
+                            [7] = 8
+                        }
+                        local type_menu_items = {
+                            [1] = "TYPE_DWORD",
+                            [2] = "TYPE_FLOAT",
+                            [3] = "TYPE_DOUBLE",
+                            [4] = "TYPE_WORD",
+                            [5] = "TYPE_BYTE",
+                            [6] = "TYPE_QWORD",
+                            [7] = "TYPE_XOR"
+                        }
+                        ::pick_type::
+                        local type_menu = gg.choice(type_menu_items)
+                        if type_menu == nil then
+                            goto pick_type
+                        else
+                            value_type = gg_types[type_menu]
+                            for i, v in pairs(sorted_instance_headers) do
+                                load_field_values[i] = v
+                                load_field_values[i].address =
+                                    v.value + tonumber(fields[select_field_menu].field_offset)
+                                load_field_values[i].flags = value_type
+                                load_field_values[i].name = "Instance " .. i .. ": " .. select_field_items[select_field_menu]
+                            end
+                            gg.addListItems(load_field_values)
+                        end
+                    end
                 end
             end
-        end
-        ::none::
-        if none_found == true then
-            gg.alert(script_title .. "\n\nℹ️ No Class Instances Found ℹ️")
-            select_field_menu = nil
-            load_field_values = {}
-            none_found = false
-        else
-            if select_field_menu ~= nil then
+            ::none::
+            if none_found == true then
+                gg.alert(script_title .. "\n\nℹ️ No Class Instances Found ℹ️")
                 select_field_menu = nil
-                gg.setVisible(true)
-                gg.alert(script_title .. "\n\nℹ️ " .. #load_field_values .. " Instances Added To Save List ℹ️")
                 load_field_values = {}
+                none_found = false
+            else
+                if select_field_menu ~= nil then
+                    select_field_menu = nil
+                    gg.setVisible(true)
+                    gg.alert(script_title .. "\n\nℹ️ " .. #load_field_values .. " Instances Added To Save List ℹ️")
+                    load_field_values = {}
+                end
             end
         end
     end,
@@ -556,58 +550,38 @@ il2cppFields = {
             field_name = working_field_name,
             value_type = save_list_selected[1].flags
         }
-        
-        
-        
-        menu_items[1] = script_title .. "\n\nℹ️ Create Edit ℹ\n" .. il2cppFields.gg_flags[save_list_selected[1].flags] .. " " .. save_list_selected[1].name
-        menu_values[1] = save_list_selected[1].value
-        menu_types[1] = "number"
-        menu_names[1] = save_list_selected[1].name
-        
-        menu_items[2] = "Freeze"
-        menu_values[2] = false
-        menu_types[2] = "checkbox"
-        
-        menu_items[3] = "Edit All Instances (Only select one)"
-        menu_values[3] = false
-        menu_types[3] = "checkbox"
-        
-        menu_items[4] = "Edit All Instances Address + 4 X4 (Only select one)"
-        menu_values[4] = false
-        menu_types[4] = "checkbox"
-        
-        menu_items[5] = "Edit All Instances With Same Initial Value (Only select one)"
-        menu_values[5] = false
-        menu_types[5] = "checkbox"
-        
-        menu_items[6] = "Edit All Instances That Have Value Below (Only select one)"
-        menu_values[6] = false
-        menu_types[6] = "checkbox"
-        
-        menu_items[7] = "Edit Instances That Have This Value"
-        menu_values[7] = ""
-        menu_types[7] = "number"
-      
-        menu_items[8] = "Edit All Instances In Range Below (Only select one)"
-        menu_values[8] = false
-        menu_types[8] = "checkbox"
-  
-        menu_items[9] = "Minimum Value"
-        menu_values[9] = ""
-        menu_types[9] = "number"
-        
-        menu_items[10] = "Maximum Value"
-        menu_values[10] = ""
-        menu_types[10] = "number"
-        
+        menu_items[#menu_items + 1] = script_title .. "\n\nℹ️ Create Edit ℹ\n"
+                                          .. il2cppFields.gg_flags[save_list_selected[1].flags] .. " "
+                                          .. save_list_selected[1].name
+        menu_values[#menu_values + 1] = save_list_selected[1].value
+        menu_types[#menu_types + 1] = "number"
+        menu_names[#menu_names + 1] = save_list_selected[1].name
+        menu_items[#menu_items + 1] = "Freeze"
+        menu_items[#menu_items + 1] = "Edit All Instances (Only select one)"
+        menu_items[#menu_items + 1] = "Edit All Instances Address + 4 X4 (Only select one)"
+        menu_items[#menu_items + 1] = "Edit All Instances With Same Initial Value (Only select one)"
+        menu_items[#menu_items + 1] = "Edit All Instances That Have Value Below (Only select one)"
+        menu_items[#menu_items + 1] = "Edit Instances That Have This Value"
+        menu_values[#menu_values + 1] = false
+        menu_types[#menu_types + 1] = "checkbox"
+        menu_values[#menu_values + 1] = false
+        menu_types[#menu_types + 1] = "checkbox"
+        menu_values[#menu_values + 1] = false
+        menu_types[#menu_types + 1] = "checkbox"
+        menu_values[#menu_values + 1] = false
+        menu_types[#menu_types + 1] = "checkbox"
+        menu_values[#menu_values + 1] = false
+        menu_types[#menu_types + 1] = "checkbox"
+        menu_values[#menu_values + 1] = ""
+        menu_types[#menu_types + 1] = "number"
         local menu = gg.prompt(menu_items, menu_values, menu_types)
         if menu ~= nil then
-            if menu[2] == true then
+            if menu[#menu - 5] == true then
                 save_edit_values.freeze = true
             else
                 save_edit_values.freeze = false
             end
-            if menu[4] == true then
+            if menu[#menu - 3] == true then
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
                     save_list_all[i].address = save_list_all[i].address + 4
@@ -618,7 +592,7 @@ il2cppFields = {
                 gg.addListItems(save_list_all)
                 save_edit_values.edit_type = "edit_all_x4"
                 save_edit_values.edit_value = menu[1]
-            elseif menu[3] == true then
+            elseif menu[#menu - 4] == true then
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
                     save_list_all[i].value = menu[1]
@@ -628,7 +602,7 @@ il2cppFields = {
                 gg.addListItems(save_list_all)
                 save_edit_values.edit_type = "edit_all"
                 save_edit_values.edit_value = menu[1]
-            elseif menu[5] == true then
+            elseif menu[#menu - 2] == true then
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
                     if save_list_all[i].value == save_list_selected[1].value then
@@ -641,10 +615,10 @@ il2cppFields = {
                 save_edit_values.edit_type = "edit_all_that_equal"
                 save_edit_values.edit_value = menu[1]
                 save_edit_values.must_equal = save_list_selected[1].value
-            elseif menu[6] == true then
+            elseif menu[#menu - 1] == true then
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
-                    if save_list_all[i].value == menu[7] then
+                    if save_list_all[i].value == menu[#menu] then
                         save_list_all[i].value = menu[1]
                         save_list_all[i].freeze = save_edit_values.freeze
                     end
@@ -653,21 +627,7 @@ il2cppFields = {
                 gg.addListItems(save_list_all)
                 save_edit_values.edit_type = "edit_all_that_equal"
                 save_edit_values.edit_value = menu[1]
-                save_edit_values.must_equal = menu[7]
-            elseif menu[8] == true then
-                local save_list_all = gg.getListItems()
-                for i, v in pairs(save_list_all) do
-                    if save_list_all[i].value >= tonumber(menu[9]) and save_list_all[i].value <= tonumber(menu[10])  then
-                        save_list_all[i].value = menu[1]
-                        save_list_all[i].freeze = save_edit_values.freeze
-                    end
-                end
-                gg.setValues(save_list_all)
-                gg.addListItems(save_list_all)
-                save_edit_values.edit_type = "edit_all_in_range"
-                save_edit_values.edit_value = menu[1]
-                save_edit_values.must_be_greater = menu[9]
-                save_edit_values.must_be_less_than = menu[10]
+                save_edit_values.must_equal = menu[#menu]
             else
                 for i, v in pairs(save_list_selected) do
                     save_list_selected[i].value = menu[1]
@@ -698,7 +658,8 @@ il2cppFields = {
             save_edit_values.edit_name = name_edit[1]
             il2cppFields.savedEditsTable[#il2cppFields.savedEditsTable + 1] = save_edit_values
             making_edit = true
-            gg.alert(script_title .. "\n\nℹ️ Value has been set. ℹ️ \nTest to verify it is working and then press the floating GG button to either Save or Discard edit.")
+            gg.alert(script_title
+                         .. "\n\nℹ️ Value has been set. ℹ️ \nTest to verify it is working and then press the floating GG button to either Save or Discard edit.")
         end
     end,
     --[[
@@ -734,7 +695,8 @@ il2cppFields = {
         working_class = saved_edit_table.class_name
         gg.setRanges(gg.REGION_OTHER)
         gg.clearResults()
-        gg.searchNumber(il2cppFields.createSearch(saved_edit_table.class_name), gg.TYPE_BYTE, false, gg.SIGN_EQUAL, range_start, range_end)
+        gg.searchNumber(il2cppFields.createSearch(saved_edit_table.class_name), gg.TYPE_BYTE, false, gg.SIGN_EQUAL,
+            range_start, range_end)
         string_address = gg.getResults(1, 1)
         if gg.getResultsCount() == 0 then
             none_found = true
@@ -1009,8 +971,9 @@ il2cppFields = {
         for i, v in pairs(sorted_instance_headers) do
             load_field_values[i] = v
             load_field_values[i].address = v.value + edit_offset
-            load_field_values[i].flags = saved_edit_table.value_type
+            load_field_values[i].flags = edit_type
         end
+        gg.setValues(load_field_values)
         gg.addListItems(load_field_values)
         if saved_edit_table.edit_type == "edit_all_x4" then
             local save_list_all = gg.getListItems()
@@ -1047,16 +1010,6 @@ il2cppFields = {
             end
             gg.setValues(save_list_all)
             gg.addListItems(save_list_all)
-         elseif saved_edit_table.edit_type == "edit_all_in_range" then
-            local save_list_all = gg.getListItems()
-            for i, v in pairs(save_list_all) do
-                if v.value >= tonumber(saved_edit_table.must_be_greater) and v.value <= tonumber(saved_edit_table.must_be_less_than)  then
-                    save_list_all[i].value = saved_edit_table.edit_value
-                    save_list_all[i].freeze = saved_edit_table.freeze
-                end
-            end
-            gg.setValues(save_list_all)
-            gg.addListItems(save_list_all) 
         end
         fields = {}
         ::none::
@@ -1082,7 +1035,8 @@ il2cppFields = {
         end
         local menu = gg.multiChoice(menu_names, nil, script_title .. "\n\nℹ️ Select Edits To Delete ℹ")
         if menu ~= nil then
-            local confirm = gg.choice({"✅ Yes delete the edits", "❌ No"}, nil, script_title .. "\n\nℹ️ Are you sure? ℹ\nAre you sure you want to delete these edits,  this can not be undone? ")
+            local confirm = gg.choice({"✅ Yes delete the edits", "❌ No"}, nil, script_title
+                .. "\n\nℹ️ Are you sure? ℹ\nAre you sure you want to delete these edits,  this can not be undone? ")
             if confirm ~= nil then
                 if confirm == 1 then
                     for k, v in pairs(il2cppFields.savedEditsTable) do
@@ -1129,12 +1083,16 @@ il2cppFields = {
             for k, v in pairs(menu) do
                 to_export[#to_export + 1] = il2cppFields.savedEditsTable[k]
             end
-            local file = io.open(il2cppFields.savePath .. "/" .. gg.getTargetPackage() .. "_" .. os.date() .. "_export.json", "w+")
+            local file = io.open(il2cppFields.savePath .. "/" .. gg.getTargetPackage() .. "_" .. os.date()
+                                     .. "_export.json", "w+")
             if file == nil then
-                file = io.open(il2cppFields.savePath .. "/" .. gg.getTargetPackage() .. "_" .. os.time() .. "_export.json", "w+")
-                gg.alert(script_title .. "\n\n✅ Edits Exported ✅\n\n" .. il2cppFields.savePath .. "/" .. gg.getTargetPackage() .. "_" .. os.time() .. "_export.json")
+                file = io.open(il2cppFields.savePath .. "/" .. gg.getTargetPackage() .. "_" .. os.time()
+                                   .. "_export.json", "w+")
+                gg.alert(script_title .. "\n\n✅ Edits Exported ✅\n\n" .. il2cppFields.savePath .. "/"
+                             .. gg.getTargetPackage() .. "_" .. os.time() .. "_export.json")
             else
-                gg.alert(script_title .. "\n\n✅ Edits Exported ✅\n\n" .. il2cppFields.savePath .. "/" .. gg.getTargetPackage() .. "_" .. os.date() .. "_export.json")
+                gg.alert(script_title .. "\n\n✅ Edits Exported ✅\n\n" .. il2cppFields.savePath .. "/"
+                             .. gg.getTargetPackage() .. "_" .. os.date() .. "_export.json")
             end
             file:write(json.encode(to_export))
             file:close()
@@ -1210,9 +1168,12 @@ Here you can delete edits for a game and remove them from the main menu.
         pluginManager.returnPluginTable = "il2cppFields"
         if passed_data then
             il2cppFields.loadFields(passed_data)
+        elseif il2cppFields.scanning == true then
+            il2cppFields.scanHome()
         else
             if making_edit == true then
-                local menu = gg.choice({"✅ Save Edit", "🗑️ Discard Edit"}, nil, script_title .. "\n\nℹ️ Save or Discard edit. ℹ️")
+                local menu = gg.choice({"✅ Save Edit", "🗑️ Discard Edit"}, nil,
+                    script_title .. "\n\nℹ️ Save or Discard edit. ℹ️")
                 if menu ~= nil then
                     if menu == 1 then
                         il2cppFields.saveConfig()
@@ -1248,6 +1209,7 @@ Here you can delete edits for a game and remove them from the main menu.
                 end
                 menu_items[#menu_items + 1] = "➕ Create Edit (Enter Class Name)"
                 menu_items[#menu_items + 1] = "➕ Create Edit (Search Il2CppDumper Dump)"
+                menu_items[#menu_items + 1] = "🔍 Class Scanner"
                 menu_items[#menu_items + 1] = "⤴️ Import Edits"
                 menu_items[#menu_items + 1] = "⤵️ Export Edits"
                 menu_items[#menu_items + 1] = "🗑️ Delete Edits"
@@ -1255,16 +1217,22 @@ Here you can delete edits for a game and remove them from the main menu.
                 menu_items[#menu_items + 1] = "❌ Exit Script"
                 local menu = gg.choice(menu_items, nil, script_title)
                 if menu ~= nil then
-                    if menu < #menu_items - 6 then
+                    if menu < #menu_items - 7 then
                         il2cppFields.doSavedEdit(il2cppFields.savedEditsTable[menu])
                     end
-                    if menu == #menu_items - 6 then
+                    if menu == #menu_items - 7 then
                         il2cppFields.loadFields()
                     end
-                    if menu == #menu_items - 5 then
+                    if menu == #menu_items - 6 then
                         pluginManager.callPlugin(pluginsDataPath .. "plugin_bc_dump_search.lua")
                         il2cppFields.home()
                     end
+                    if menu == #menu_items - 5 then
+                        il2cppFields.scanHome()
+                        il2cppFields.scanning = true
+                        -- il2cppFields.home()
+                    end
+
                     if menu == #menu_items - 4 then
                         il2cppFields.importEdits()
                         il2cppFields.home()
@@ -1305,9 +1273,480 @@ Here you can delete edits for a game and remove them from the main menu.
         [2] = "TYPE_WORD",
         [8] = "TYPE_XOR"
     },
-    s_b_s = "109;115;99;111;114;108;105;98;46;100;108;108;77;111;100;117;108;101::20",
+    arch = gg.getTargetInfo(),
+    gg_hex = function(n)
+        if il2cppFields.arch.x64 then
+            return "0x" .. string.format('%16x', n):sub(-10)
+        else
+            return "0x" .. string.format('%08x', n):sub(-8)
+        end
+    end,
+    other_ranges = {},
+    fieldOffsets = {},
+    offsetsAPI = {
+        [24] = {
+            fieldOffset = {
+                ARM8 = 0x18,
+                ARM7 = 0xC
+            },
+            fieldType = {
+                ARM8 = 0x8,
+                ARM7 = 0x4
+            },
+            fieldClassOffset = {
+                ARM8 = 0x10,
+                ARM7 = 0x8
+            },
+            fieldPointer = {
+                ARM8 = 0x80,
+                ARM7 = 0x40
+            },
+            fieldNext = {
+                ARM8 = 0x20,
+                ARM7 = 0x14
+            },
+            fieldCount = {
+                ARM8 = 0x11C,
+                ARM7 = 0xA8
+            }
+        },
+        [27] = {
+            fieldOffset = {
+                ARM8 = 0x18,
+                ARM7 = 0xC
+            },
+            fieldType = {
+                ARM8 = 0x8,
+                ARM7 = 0x4
+            },
+            fieldClassOffset = {
+                ARM8 = 0x10,
+                ARM7 = 0x8
+            },
+            fieldPointer = {
+                ARM8 = 0x80,
+                ARM7 = 0x40
+            },
+            fieldNext = {
+                ARM8 = 0x20,
+                ARM7 = 0x14
+            },
+            fieldCount = {
+                ARM8 = 0x120,
+                ARM7 = 0xA8
+            }
+        },
+        [29] = {
+            fieldOffset = {
+                ARM8 = 0x18,
+                ARM7 = 0xC
+            },
+            fieldType = {
+                ARM8 = 0x8,
+                ARM7 = 0x4
+            },
+            fieldClassOffset = {
+                ARM8 = 0x10,
+                ARM7 = 0x8
+            },
+            fieldPointer = {
+                ARM8 = 0x80,
+                ARM7 = 0x40
+            },
+            fieldNext = {
+                ARM8 = 0x20,
+                ARM7 = 0x14
+            },
+            fieldCount = {
+                ARM8 = 0x120,
+                ARM7 = 0xA8
+            }
+        }
+    },
+    unityVersions = {{
+        search = ":" .. string.char(0) .. "2022.",
+        version = 29
+    }, {
+        search = ":" .. string.char(0) .. "2021.1",
+        version = 27
+    }, {
+        search = ":" .. string.char(0) .. "2020.2",
+        version = 27
+    }, {
+        search = ":" .. string.char(0) .. "2020.1",
+        version = 24
+    }, {
+        search = ":" .. string.char(0) .. "2019.",
+        version = 24
+    }, {
+        search = ":" .. string.char(0) .. "2018.",
+        version = 24
+    }, {
+        search = ":" .. string.char(0) .. "2017.",
+        version = 24
+    }},
+    setup = function()
+        if il2cppFields.arch.x64 then
+            flag_type = gg.TYPE_QWORD
+            ARM = "ARM8"
+        else
+            flag_type = gg.TYPE_DWORD
+            ARM = "ARM7"
+        end
+        gg.setRanges(gg.REGION_C_ALLOC)
+        for i, v in ipairs(il2cppFields.unityVersions) do
+            gg.clearResults()
+            gg.searchNumber(v.search)
+            local check_version = gg.getResults(1)
+            if #check_version > 0 then
+                local check_f = {}
+                for index = 1, 12 do
+                    check_f[index] = {}
+                    check_f[index].address = check_version[1].address + index
+                    check_f[index].flags = gg.TYPE_BYTE
+                end
+                check_f = gg.getValues(check_f)
+                for index, value in ipairs(check_f) do
+                    if value.value == 102 then
+                        found = true
+                    end
+                end
+                if found == true then
+                    il2cppFields.fieldOffsets.fieldOffset = il2cppFields.offsetsAPI[v.version].fieldOffset[ARM]
+                    il2cppFields.fieldOffsets.fieldType = il2cppFields.offsetsAPI[v.version].fieldType[ARM]
+                    il2cppFields.fieldOffsets.fieldClassOffset =
+                        il2cppFields.offsetsAPI[v.version].fieldClassOffset[ARM]
+                    il2cppFields.fieldOffsets.fieldPointer = il2cppFields.offsetsAPI[v.version].fieldPointer[ARM]
+                    il2cppFields.fieldOffsets.fieldNext = il2cppFields.offsetsAPI[v.version].fieldNext[ARM]
+                    il2cppFields.fieldOffsets.fieldCount = il2cppFields.offsetsAPI[v.version].fieldCount[ARM]
+                    break
+                end
+            end
+        end
+        if not il2cppFields.fieldOffsets.fieldOffset then
+            il2cppFields.fieldOffsets.fieldOffset = il2cppFields.offsetsAPI[24].fieldOffset[ARM]
+            il2cppFields.fieldOffsets.fieldType = il2cppFields.offsetsAPI[24].fieldType[ARM]
+            il2cppFields.fieldOffsets.fieldClassOffset = il2cppFields.offsetsAPI[24].fieldClassOffset[ARM]
+            il2cppFields.fieldOffsets.fieldPointer = il2cppFields.offsetsAPI[24].fieldPointer[ARM]
+            il2cppFields.fieldOffsets.fieldNext = il2cppFields.offsetsAPI[24].fieldNext[ARM]
+            il2cppFields.fieldOffsets.fieldCount = il2cppFields.offsetsAPI[24].fieldCount[ARM]
+        end
+        for i, v in pairs(gg.getRangesList()) do
+            if v.state == "O" then
+                table.insert(il2cppFields.other_ranges, {
+                    start = v["start"],
+                    ["end"] = v["end"]
+                })
+            end
+        end
+    end,
+    check_if_other = function(address)
+        local found = false
+        if address ~= "0x00000000" then
+            for i, v in ipairs(il2cppFields.other_ranges) do
+                if tonumber(address) >= tonumber(v["start"]) and tonumber(address) <= tonumber(v["end"]) then
+                    found = true
+                    break
+                end
+            end
+        end
+        return found
+    end,
+    class_names = {},
+    namespace_names = {},
+    image_names = {},
+    firstPointerSearch = {},
+    scan = function()
+        ::menu1::
+        local menu = gg.choice({"Find All Classes", "Only Find Classes With No Namespace"}, nil, script_title .. "\n\nℹ️ Class Scanner ℹ️")
+        if menu == nil then
+            goto menu1
+        end
+        if not il2cppFields.fieldOffsets.fieldOffset then
+            il2cppFields.setup()
+        end
+        gg.clearResults()
+        gg.setRanges(gg.REGION_C_ALLOC)
+        local startingSearches = {
+            ["ARM7"] = {
+                [1] = range_start .. "~" .. range_end .. ";" .. range_start - 200 .. "~" .. range_end .. "::5",
+                [2] = range_start .. "~" .. range_end .. ";" .. range_start - 200 .. "~" .. range_start + 10 .. "::5"
+            },
+            ["ARM8"] = {
+                [1] = range_start .. "~" .. range_end .. ";" .. range_start - 200 .. "~" .. range_end .. "::13",
+                [2] = range_start .. "~" .. range_end .. ";" .. range_start - 200 .. "~" .. range_start + 10 .. "::13"
+            }
+        }
+        if menu == 1 then
+            first_search_string = startingSearches[ARM][1]
+        end
+        if menu == 2 then
+            first_search_string = startingSearches[ARM][2]
+        end
+        gg.searchNumber(first_search_string, flag_type)
+        il2cppFields.firstPointerSearch = gg.getResults(gg.getResultsCount())
+        check_table = {}
+        local add_value = true
+        for i, v in ipairs(il2cppFields.firstPointerSearch) do
+            if add_value == true then
+                table.insert(check_table, v)
+                add_value = false
+            else
+                add_value = true
+            end
+        end
+        gg.loadResults(check_table)
+        sorted_check_table = {}
+        for i, v in ipairs(check_table) do
+            if i % 100 == 0 then
+                gg.toast(i .. " of " .. #check_table .. " pointers checked")
+            end
+            local check_class = {}
+            check_class[1] = {}
+            if il2cppFields.arch.x64 then
+                check_class[1].address = v.address - 16
+                check_class[1].flags = gg.TYPE_QWORD
+                check_class[2] = {}
+                check_class[2].address = v.address
+                check_class[2].flags = gg.TYPE_QWORD
+                check_class[3] = {}
+                check_class[3].address = v.address + 8
+                check_class[3].flags = gg.TYPE_QWORD
+                check_class[4] = {}
+                check_class[4].address = v.address + il2cppFields.fieldOffsets.fieldPointer - 16
+                check_class[4].flags = gg.TYPE_QWORD
+                check_class[5] = {}
+                check_class[5].address = v.address + il2cppFields.fieldOffsets.fieldCount - 16
+                check_class[5].flags = gg.TYPE_DWORD
+            else
+                check_class[1].address = v.address - 8
+                check_class[1].flags = gg.TYPE_DWORD
+                check_class[2] = {}
+                check_class[2].address = v.address
+                check_class[2].flags = gg.TYPE_DWORD
+                check_class[3] = {}
+                check_class[3].address = v.address + 4
+                check_class[3].flags = gg.TYPE_DWORD
+                check_class[4] = {}
+                check_class[4].address = v.address + il2cppFields.fieldOffsets.fieldPointer - 8
+                check_class[4].flags = gg.TYPE_DWORD
+                check_class[5] = {}
+                check_class[5].address = v.address + il2cppFields.fieldOffsets.fieldCount - 8
+                check_class[5].flags = gg.TYPE_DWORD
+            end
+            check_class = gg.getValues(check_class)
+            if #tostring(check_class[1].value) > 8 and #tostring(check_class[2].value) > 8
+                and #tostring(check_class[4].value) > 8 then
+                local field_count
+                if check_class[5].value > 0 and check_class[5].value < 10000 then
+                    field_count = check_class[5].value
+                end
+                local get_image = {}
+                local get_namespace = {}
+                if field_count ~= nil then
+                    if il2cppFields.image_names[tostring(check_class[1].address)] then
+                        get_image = il2cppFields.image_names[tostring(check_class[1].address)]
+                    else
+                        get_image[1] = {}
+                        get_image[1].address = check_class[1].value
+                        get_image[1].flags = flag_type
+                        get_image = gg.getValues(get_image)
+                        get_image = get_image[1].value
+                        il2cppFields.image_names[tostring(check_class[1].address)] = get_image
+                    end
+                    if #tostring(check_class[3].value) > 8 then
+                        if il2cppFields.namespace_names[tostring(check_class[3].value)] then
+                            get_namespace = il2cppFields.namespace_names[tostring(check_class[3].value)]
+                        else
+                            get_namespace = check_class[3].value
+                            il2cppFields.namespace_names[tostring(check_class[3].value)] = get_namespace
+                        end
+                    end
+                    local class_name
+                    if il2cppFields.class_names[tostring(check_class[2].value)] then
+                        class_name = il2cppFields.class_names[tostring(check_class[2].value)]
+                    else
+                        class_name = il2cppFields.get_class_name(il2cppFields.gg_hex(check_class[2].value))
+                        il2cppFields.class_names[tostring(check_class[2].value)] = class_name
+                    end
+                    local add_to_list = {}
+                    add_to_list.address = check_class[1].address
+                    add_to_list.flags = flag_type
+                    add_to_list.name = "Image: " .. il2cppFields.get_class_name(il2cppFields.gg_hex(get_image)) .. "\n"
+                    if type(get_namespace) == "number" then
+                        add_to_list.name = add_to_list.name .. "Namespace: " .. il2cppFields.get_class_name(il2cppFields.gg_hex(get_namespace)) .. "\n"
+                    end
+                    add_to_list.name = add_to_list.name .. "Class: " .. class_name .. "\nFields: " .. field_count
+                    gg.addListItems({add_to_list})
+                end
+            end
+        end
+        class_list = gg.getListItems()
+        gg.alert(script_title .. "\n\nℹ️ Class Scan Complete ℹ️\n\nSelect 1 item in the Save List and press the floating [Sx] button to search for instances of the class.\n\nOr select nothing and press the floating [Sx] button to search for keywords or rescan.")
+    end,
+    get_class_name = function(address)
+        local class_name = ""
+        if address ~= "0x00000000" then
+            local first_letter = {}
+            first_letter[1] = {}
+            first_letter[1].address = address
+            first_letter[1].flags = gg.TYPE_BYTE
+            first_letter = gg.getValues(first_letter)
+            local get_class_name_table = {}
+            offset = 0
+            for i = 1, 100 do
+                get_class_name_table[i] = {}
+                get_class_name_table[i].address = first_letter[1].address + offset
+                get_class_name_table[i].flags = gg.TYPE_BYTE
+                offset = offset + 1
+            end
+            get_class_name_table = gg.getValues(get_class_name_table)
+            class_name = ""
+            for index, value in pairs(get_class_name_table) do
+                if value.value > 0 and value.value <= 255 then
+                    class_name = class_name .. string.char(value.value)
+                end
+                if value.value == 0 then
+                    break
+                end
+            end
+        end
+        return class_name
+    end,
+    current_fields = {},
+    retrieved_field_types = {},
+    s_b_s = ":mscorlib.dll <Module>",
     e_b_s = "00h;00h;0~~0;0~~0;0~~0;00h;0~~0;00h;0~~0;00h;FFh;FFh::12",
-    arch = gg.getTargetInfo()
+    getRange = function()
+        gg.setRanges(gg.REGION_OTHER)
+        gg.setVisible(false)
+        gg.toast("\n\nℹ️ Configuring Script ℹ️")
+        gg.clearResults()
+        ::try_ca::
+        gg.searchNumber(il2cppFields.s_b_s, gg.TYPE_BYTE, false, gg.SIGN_EQUAL, nil, nil, 1)
+        if gg.getResultsCount() == 0 then
+            gg.setRanges(gg.REGION_C_ALLOC)
+            goto try_ca
+        end
+        local start_search = gg.getResults(1)
+        gg.clearResults()
+        range_start = start_search[1].address
+        for i, v in pairs(gg.getRangesList()) do
+            if v["start"] < range_start and v["end"] > range_start then
+                metadata_end = v["end"]
+                break
+            end
+        end
+        gg.searchNumber(il2cppFields.e_b_s, gg.TYPE_BYTE, false, gg.SIGN_EQUAL, range_start, nil, 1)
+        local end_search = gg.getResults(1)
+        range_end = end_search[1].address
+        gg.clearResults()
+    end,
+    load_instance_values = function(address, offset, field_type, field_name, current_class)
+        local gg_flags = {
+            ["char"] = gg.TYPE_BYTE,
+            ["byte"] = gg.TYPE_BYTE,
+            ["sbyte"] = gg.TYPE_BYTE,
+            ["double"] = gg.TYPE_DOUBLE,
+            ["int"] = gg.TYPE_DWORD,
+            ["short"] = gg.TYPE_DWORD,
+            ["long"] = gg.TYPE_DWORD,
+            ["uint"] = gg.TYPE_DWORD,
+            ["ushort"] = gg.TYPE_DWORD,
+            ["ulong"] = gg.TYPE_DWORD,
+            ["float"] = gg.TYPE_FLOAT
+        }
+        gg.setRanges(gg.REGION_ANONYMOUS)
+        gg.clearResults()
+        gg.searchNumber(address, flag_type)
+        local current_instances = gg.getResults(gg.getResultsCount())
+        for i, v in ipairs(current_instances) do
+            current_instances[i].address = current_instances[i].address + offset
+            if current_instances[i].address % 4 ~= 0 then
+                current_instances[i].flags = gg.TYPE_BYTE
+            elseif gg_flags[field_type] then
+                current_instances[i].flags = gg_flags[field_type]
+            else
+                current_instances[i].flags = gg.TYPE_DWORD
+            end
+            current_instances[i].name = current_class .. "\n" .. field_type .. " " .. field_name .. " " .. offset
+        end
+        gg.clearList()
+        gg.addListItems(current_instances)
+    end,
+    search = function()
+        search_list = {}
+        local menu = gg.prompt({"Search Term", "Case Sensitive", "Search Image Instead Of Class"}, {"", true, false}, {"text", "checkbox", "checkbox"})
+        if menu ~= nil then
+            for i, v in ipairs(class_list) do
+                if menu[3] == false then
+                    if menu[2] == false then
+                        if string.lower(v.name):find("class.+" .. string.lower(menu[1])) then
+                            table.insert(search_list, v)
+                        end
+                    elseif v.name:find("Class.+" .. menu[1]) then
+                        table.insert(search_list, v)
+                    end
+                else
+                    if menu[2] == false then
+                        if string.lower(v.name):find("image.+" .. string.lower(menu[1])) then
+                            table.insert(search_list, v)
+                        end
+                    elseif v.name:find("Image.+" .. menu[1]) then
+                        table.insert(search_list, v)
+                    end
+                end
+            end
+        end
+        gg.clearList()
+        gg.addListItems(search_list)
+    end,
+    scanHome = function()
+        if #gg.getSelectedListItems() == 1 then
+            current_class = gg.getSelectedListItems()[1].name
+            il2cppFields.scanning = false
+            il2cppFields.home(current_class:gsub(".+Class: (.+)\nField.+", "%1"))
+        else
+            local menu_items = {}
+            menu_items[1] = "🔍 Scan/Rescan For Classes"
+            if class_list then
+                menu_items[2] = "🔄 Reload Class List"
+                menu_items[3] = "🔎 Search Class List"
+            end
+            if search_list then
+                menu_items[4] = "🔄 Reload Last Search Result"
+            end
+            menu_items[#menu_items + 1] = "🏠 Back"
+            local menu = gg.choice(menu_items, nil, script_title .. "\n\nℹ️ Class Scanner ℹ️")
+            if menu ~= nil then
+                if menu == 1 then
+                    gg.clearList()
+                    il2cppFields.scan()
+                end
+                if menu == 2 and (#menu_items == 4 or #menu_items == 5) then
+                    gg.clearList()
+                    gg.addListItems(class_list)
+                elseif menu == 2 then
+                    il2cppFields.scanning = false
+                    il2cppFields.home()
+                end
+            end
+            if menu == 3 then
+                il2cppFields.search()
+            end
+            if menu == 4 and #menu_items == 5 then
+                gg.clearList()
+                gg.addListItems(search_list)
+            elseif menu == 4 then
+                il2cppFields.scanning = false
+                il2cppFields.home()
+            end
+            if menu == 5 then
+                il2cppFields.scanning = false
+                il2cppFields.home()
+            end
+        end
+    end
 }
 if il2cppFields.arch.x64 then
     flag_type = gg.TYPE_QWORD
