@@ -135,7 +135,7 @@ editByOffset = {
                         end
                         if edit_type ~= 7 then
                             if arch.x64 then
-                                editByOffset.createSetValues(editOffset, editByOffset.savedEditsTable[#editByOffset.savedEditsTable].editsARM7)
+                                editByOffset.createSetValues(editOffset, editByOffset.savedEditsTable[#editByOffset.savedEditsTable].editsARM8)
                             else
                                 editByOffset.createSetValues(editOffset, editByOffset.savedEditsTable[#editByOffset.savedEditsTable].editsARM7)
                             end
@@ -181,7 +181,7 @@ editByOffset = {
                 end
             else
                 local check_offset = tonumber(calledAddress) - tonumber(hookedAddress)
-                if file_ext == "ARM8" then
+                if arch.x64 then
                     call_offset = hex_o(check_offset)
                 else
                     call_offset = "+" .. hex_o(check_offset)

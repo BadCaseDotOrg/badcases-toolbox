@@ -194,6 +194,46 @@ scriptCreator = {
             end
         end
     end,
+    addTranslations = function()
+    local translateTable = {}
+    ::add_more::
+    local menu = gg.choice ({"📥 Import smodin.io JSON","📋 Copy Menu Names To Clipboard","📋 Copy smodin.io Translator Link To Clipboard","👁️ Hide Script","❌ Done Adding Translations"},nil,script_title .. "\n\nℹ️ Translation Menu ℹ️")
+    if menu == nil then
+        goto add_more
+    else
+        if menu == 1 then
+            local filePrompt = gg.prompt ({"Select smodin.io JSON File"},{gg.EXT_STORAGE.."/Download/"},{"file"})
+            local file = io.open(filePrompt[1], "r")
+            local content = file:read("*a")
+            file:close()
+            local tempTable = json.decode (content)
+            for i,v in pairs (tempTable) do
+                v.text = Il2Cpp.mySplit(v.text, "\n")
+                table.insert (translateTable,v)
+            end
+            goto add_more
+        end
+        if menu == 2 then
+            local menuNames = ""
+            for i,v in ipairs (scriptCreator.scriptFunctions) do
+                 menuNames = menuNames..v.menu_name.."\n"
+            end
+            gg.copyText (menuNames)
+            goto add_more
+        end
+        if menu == 3 then
+            gg.copyText ("https://smodin.io/translate-one-text-into-multiple-languages")
+            goto add_more
+        end
+        if menu == 4 then
+            gg.sleep(10000)
+            goto add_more
+        end
+        if menu == 5 then
+            return translateTable
+        end
+    end
+end,
     -- scriptCreator.exportScript(scriptName)
     exportScript = function(scriptName)
         ::check_name::
@@ -201,9 +241,17 @@ scriptCreator = {
             scriptCreator.nameScript()
             goto check_name
         end
+        local translateTable
+        local translateMenu = gg.choice({"✅ Yes","❌ No"},nil,script_title .. "\n\nℹ️ Do you want to add translations to other languages for your menus? ℹ️")
+        if translateMenu ~= nil then
+            if translateMenu == 1 then
+                translateTable = scriptCreator.addTranslations()
+            end
+        end
 		local scriptExportTable = {
 			'script_title = "' .. scriptCreator.scriptName .. '"',
 			'scriptFunctions = ' .. tostring(scriptCreator.scriptFunctions), 
+			'translateTable = ' .. tostring(translateTable), 
 			'Il2Cpp = {}',
 			'Il2Cpp.Il2cppApi = ' .. tostring(Il2Cpp.Il2cppApi[Il2Cpp.unity_version]), 
 			'editByOffset = {}',
@@ -319,7 +367,6 @@ scriptCreator = {
 			'        else',
 			'            editHook[1].value = scriptFunctions[function_index].edits[editIndex].edits[1][1]',
 			'        end',
-			
 			'        gg.setValues(editHook)',
 			'        scriptFunctions[function_index].edits[editIndex].enabled = true',
 			'    end',
@@ -364,15 +411,34 @@ scriptCreator = {
 			'    for i, v in pairs(scriptFunctions) do',
 			'        menuNames[i] = emojis[i] .. " " .. v.menu_name',
 			'    end',
+			'    if translateTable ~= nil then',
+			'        menuNames[#menuNames + 1] = "🌐 Change Language"',
+			'    end',
 			'    menuNames[#menuNames + 1] = "❌ Exit"',
 			'    local menu = gg.choice(menuNames, nil, script_title)',
 			'    if menu ~= nil then',
 			'        if menu == #menuNames then',
-			'            os.exit()',
+			'            os.exit() ',
+			'        elseif translateTable ~= nil and menu == #menuNames - 1 then',
+			'             changeLang()',
 			'        else',
 			'            setValues(menu)',
 			'        end',
 			'    end',
+			'end',
+			'',
+			'function changeLang()',
+			'    local languages = {}',
+			'    for i,v in ipairs (translateTable) do',
+			'        languages[i] = v.language',
+			'    end',
+			'    local menu = gg.choice (languages,nil,"Select language")',
+			'    if menu ~= nil then',
+			'        for i,v in ipairs (scriptFunctions) do',
+			'            scriptFunctions[i].menu_name = translateTable[menu].text[i]',
+			'        end',
+			'    end',
+			'    home()',
 			'end',
 			'',
 			'function setValues(function_index)',
@@ -388,9 +454,9 @@ scriptCreator = {
 			'        if v.method_name and v.hook then',
 			'            createHookCall(v, function_index, i)',
 			'        elseif v.method_name then',
-            '            setMethodValues(function_index, i)',
-            '        elseif v.field_name then',
-            '            if status == "Enabled" then',
+			'            setMethodValues(function_index, i)',
+			'        elseif v.field_name then',
+			'            if status == "Enabled" then',
 			'                setFieldValues(v, function_index, i)',
 			'            end',
 			'        elseif v.editName then',
@@ -732,15 +798,26 @@ scriptCreator = {
 			'end',
 			'',
 			'function getLib(libName)',
-			'    lib_size = 0',
-			'    lib_index = ""',
-			'    for i, v in pairs(gg.getRangesList(libName)) do',
-			'        if v["end"] - v["start"] > lib_size and v["state"] == "Xa" then',
-			'            lib_size = v["end"] - v["start"]',
-			'            lib_index = i',
-			'        end',
-			'    end',
-			'    BASEADDR = gg.getRangesList(libName)[lib_index].start',
+			'	lib_size = 0',
+			'	lib_index = ""',
+			'	if #gg.getRangesList(libName) == 0 then',
+			'		if libName:find(".so") then',
+			'			if arch.x64 then',
+			'				libName = "split_config.arm64_v8a.apk"',
+			'			else',
+			'				libName = "split_config.armeabi_v7a.apk"',
+			'			end',
+			'		elseif libName:find(".apk") then',
+			'			libname = "libil2cpp.so"',
+			'		end',
+			'	end',
+			'	for i, v in pairs(gg.getRangesList(libName)) do',
+			'		if v["end"] - v["start"] > lib_size and v["state"] == "Xa" then',
+			'			lib_size = v["end"] - v["start"]',
+			'			lib_index = i',
+			'		end',
+			'	end',
+			'	BASEADDR = gg.getRangesList(libName)[lib_index].start',
 			'end',
 			'',
 			'function setLibOffsetValues(edit_table, function_index, edit_index)',
@@ -838,3 +915,5 @@ scriptCreator = {
 pluginManager.returnHome = true
 pluginManager.returnPluginTable = "scriptCreator"
 scriptCreator.home()
+
+------WebKitFormBoundaryqAhb3D8CD

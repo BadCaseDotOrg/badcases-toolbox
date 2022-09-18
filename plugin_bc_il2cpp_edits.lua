@@ -442,7 +442,7 @@ il2cppEdits = {
                 end
             else
                 local check_offset = tonumber(calledAddress) - tonumber(hookedAddress)
-                if file_ext == "ARM8" then
+                if il2cppEdits.arch.x64 then
                     call_offset = hex_o(check_offset)
                 else
                     call_offset = "+" .. hex_o(check_offset)
