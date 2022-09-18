@@ -7,7 +7,7 @@ il2cppFields = {
     end,
     --    il2cppFields.saveConfig()
     saveConfig = function()
-        bc.saveTable("il2cppFields.savedEditsTable",il2cppFields.savePath .. "/" .. gg.getTargetPackage() .. ".cfg")
+        bc.saveTable("il2cppFields.savedEditsTable", il2cppFields.savePath .. "/" .. gg.getTargetPackage() .. ".cfg")
     end,
     --    il2cppFields.checkMethodTypes()
     checkMethodTypes = function()
@@ -23,7 +23,7 @@ il2cppFields = {
         dofile(il2cppFields.savePath .. gg.getTargetPackage() .. "_" .. gg.getTargetInfo().versionCode .. "_fields.lua")
     end,
     saveDumpedFields = function()
-        bc.saveTable("Il2Cpp.dumpTable",il2cppFields.savePath .. gg.getTargetPackage() .. "_" .. gg.getTargetInfo().versionCode .. "_fields.lua")
+        bc.saveTable("Il2Cpp.dumpTable", il2cppFields.savePath .. gg.getTargetPackage() .. "_" .. gg.getTargetInfo().versionCode .. "_fields.lua")
     end,
     --    il2cppFields.loadFields(class, continue)
     loadFields = function(class, continue)
@@ -50,7 +50,7 @@ il2cppFields = {
         end
         gg.clearList()
         if not continue then
-            class_string_search = gg.prompt({bc.Prompt("Enter Class Name","ℹ️")}, {class}, {"text"})
+            class_string_search = gg.prompt({bc.Prompt("Enter Class Name", "ℹ️")}, {class}, {"text"})
         end
         if class_string_search ~= nil or continue == true then
             if continue == true then
@@ -67,7 +67,8 @@ il2cppFields = {
                 end
                 string_address = string_address[1].address
                 gg.clearResults()
-                gg.setRanges(gg.REGION_C_ALLOC)
+                -- gg.setRanges(gg.REGION_C_ALLOC)
+                gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)
                 gg.searchNumber(string_address, flag_type)
                 class_headers = gg.getResults(gg.getResultsCount())
                 for i, v in pairs(class_headers) do
@@ -135,7 +136,8 @@ il2cppFields = {
                     fields_start = fields_start[1].address
                     local offset = 0
                     gg.clearResults()
-                    gg.setRanges(gg.REGION_C_ALLOC)
+                    gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)
+                    -- gg.setRanges(gg.REGION_C_ALLOC)
                     local getall
                     for i = 1, field_count do
                         local field_name_pointer = {}
@@ -264,7 +266,7 @@ il2cppFields = {
                             [7] = "TYPE_XOR"
                         }
                         ::pick_type::
-                        local type_menu = gg.choice(type_menu_items,nil,bc.Choice("Select Edit Type", "","ℹ️"))
+                        local type_menu = gg.choice(type_menu_items, nil, bc.Choice("Select Edit Type", "", "ℹ️"))
                         if type_menu == nil then
                             goto pick_type
                         else
@@ -298,118 +300,199 @@ il2cppFields = {
     end,
     --    il2cppFields.editFields()
     editFields = function()
-        local menu_items = {}
-        local menu_names = {}
-        local menu_values = {}
-        local menu_types = {}
+
+        -- local menu_names = {}
+
         local save_list_selected = gg.getSelectedListItems()
         local save_edit_values = {
             class_name = working_class,
             field_name = working_field_name,
             value_type = save_list_selected[1].flags
         }
-        menu_items[#menu_items + 1] = script_title .. "\n\nℹ️ Create Edit ℹ\n" .. il2cppFields.gg_flags[save_list_selected[1].flags] .. " " .. save_list_selected[1].name
-        menu_values[#menu_values + 1] = save_list_selected[1].value
-        menu_types[#menu_types + 1] = "number"
-        menu_names[#menu_names + 1] = save_list_selected[1].name
-        menu_items[#menu_items + 1] = "Freeze"
-        menu_items[#menu_items + 1] = "Edit All Instances (Only select one)"
-        menu_items[#menu_items + 1] = "Edit All Instances Address + 4 X4 (Only select one)"
-        menu_items[#menu_items + 1] = "Edit All Instances With Same Initial Value (Only select one)"
-        menu_items[#menu_items + 1] = "Edit All Instances That Have Value Below (Only select one)"
-        menu_items[#menu_items + 1] = "Edit Instances That Have This Value"
-        menu_values[#menu_values + 1] = false
-        menu_types[#menu_types + 1] = "checkbox"
-        menu_values[#menu_values + 1] = false
-        menu_types[#menu_types + 1] = "checkbox"
-        menu_values[#menu_values + 1] = false
-        menu_types[#menu_types + 1] = "checkbox"
-        menu_values[#menu_values + 1] = false
-        menu_types[#menu_types + 1] = "checkbox"
-        menu_values[#menu_values + 1] = false
-        menu_types[#menu_types + 1] = "checkbox"
-        menu_values[#menu_values + 1] = ""
-        menu_types[#menu_types + 1] = "number"
+        -- menu_names[#menu_names + 1] = save_list_selected[1].name
+        local menu_items = {script_title .. "\n\nℹ️ Create Edit ℹ\n" .. il2cppFields.gg_flags[save_list_selected[1].flags] .. " " .. save_list_selected[1].name, "Freeze", "Edit All Instances (Only select one)", "Edit All Instances Address + 4 X4 (Only select one)", "Edit All Instances With Selected Value (Only select one)", "Edit All Instances = To Value Below (Only select one)", "Edit All Instances ~= To Value Below (Only select one)",
+            "Edit All Instances <= To Value Below (Only select one)", "Edit All Instances >= To Value Below (Only select one)", "Edit All Instances In Range Below (Only select one)", "Edit All Instances NOT In Range Below (Only select one)", "Enter Number Or Number Range (0~100)"}
+        local mF = false
+        local cB = "checkbox"
+        local menu_values = {save_list_selected[1].value, mF, mF, mF, mF, mF, mF, mF, mF, mF, mF, ""}
+        local menu_types = {"number", cB, cB, cB, cB, cB, cB, cB, cB, cB, cB, "number"}
+        ::edit_menu::
         local menu = gg.prompt(menu_items, menu_values, menu_types)
         if menu ~= nil then
-            if menu[#menu - 5] == true then
+            local selectedCount = 0
+            local emptyInput1 = false
+            local emptyInput2 = false
+            for i, v in pairs(menu) do
+                if i == 1 and v == "" then
+                    emptyInput1 = true
+                end
+
+                if i > 2 and type(v) == "boolean" and v == true then
+                    if i > 5 and menu[#menu] == "" then
+                        emptyInput2 = true
+                    end
+                    selectedCount = selectedCount + 1
+                end
+            end
+            if selectedCount > 1 or emptyInput1 == true or emptyInput2 == true then
+                local errorHeader
+                local errorMessage
+                if selectedCount > 1 then
+                    errorHeader = "Too Many Options Selected"
+                    errorMessage = "Only select 1 of the options labeled (Only select one)."
+                elseif emptyInput1 == true then
+                    errorHeader = "Empty Input"
+                    errorMessage = "You must enter a value to edit the fields to in the first text input."
+                elseif emptyInput2 == true then
+                    errorHeader = "Empty Input"
+                    errorMessage = "You must enter a value in the second text input for your selected option."
+                end
+                bc.Alert(errorHeader, errorMessage, "⚠️")
+                goto edit_menu
+            end
+            local editValue = tonumber(menu[1])
+            local mustEqual
+            if menu[#menu]:find("~") then
+                mustEqual = menu[#menu]
+            else
+                mustEqual = tonumber(menu[#menu])
+            end
+            if menu[2] == true then -- Freeze
                 save_edit_values.freeze = true
             else
                 save_edit_values.freeze = false
             end
-            if menu[#menu - 3] == true then
+            if menu[3] == true then -- Edit All Instances (Only select one)
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
-                    save_list_all[i].address = save_list_all[i].address + 4
-                    if tonumber(menu[1] ) == 0 then
-                        save_list_all[i].value = save_list_all[i].value
-                    else
-                        save_list_all[i].value = menu[1] .. "X4"
-                    end
-                    save_list_all[i].freeze = save_edit_values.freeze
-                end
-                gg.setValues(save_list_all)
-                save_edit_values.edit_type = "edit_all_x4"
-                save_edit_values.edit_value = menu[1]
-            elseif menu[#menu - 4] == true then
-                local save_list_all = gg.getListItems()
-                for i, v in pairs(save_list_all) do
-                    save_list_all[i].value = menu[1]
+                    save_list_all[i].value = editValue
                     save_list_all[i].freeze = save_edit_values.freeze
                 end
                 gg.setValues(save_list_all)
                 gg.addListItems(save_list_all)
                 save_edit_values.edit_type = "edit_all"
-                save_edit_values.edit_value = menu[1]
-            elseif menu[#menu - 2] == true then
+                save_edit_values.edit_value = editValue
+            end
+            if menu[4] == true then -- Edit All Instances Address + 4 X4 (Only select one)
+                local save_list_all = gg.getListItems()
+                for i, v in pairs(save_list_all) do
+                    save_list_all[i].address = save_list_all[i].address + 4
+                    if editValue == 0 then
+                        save_list_all[i].value = save_list_all[i].value
+                    else
+                        save_list_all[i].value = editValue .. "X4"
+                    end
+                    save_list_all[i].freeze = save_edit_values.freeze
+                end
+                gg.setValues(save_list_all)
+                save_edit_values.edit_type = "edit_all_x4"
+                save_edit_values.edit_value = editValue
+            end
+            if menu[5] == true then -- Edit All Instances With Selected Value (Only select one)
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
                     if save_list_all[i].value == save_list_selected[1].value then
-                        save_list_all[i].value = menu[1]
+                        save_list_all[i].value = editValue
                         save_list_all[i].freeze = save_edit_values.freeze
                     end
                 end
                 gg.setValues(save_list_all)
                 gg.addListItems(save_list_all)
                 save_edit_values.edit_type = "edit_all_that_equal"
-                save_edit_values.edit_value = menu[1]
+                save_edit_values.edit_value = editValue
                 save_edit_values.must_equal = save_list_selected[1].value
-            elseif menu[#menu - 1] == true then
+            end
+            if menu[6] == true then -- Edit All Instances = To Value Below (Only select one)
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
-                    if save_list_all[i].value == menu[#menu] then
-                        save_list_all[i].value = menu[1]
+                    if save_list_all[i].value == mustEqual then
+                        save_list_all[i].value = editValue
                         save_list_all[i].freeze = save_edit_values.freeze
                     end
                 end
                 gg.setValues(save_list_all)
                 gg.addListItems(save_list_all)
                 save_edit_values.edit_type = "edit_all_that_equal"
-                save_edit_values.edit_value = menu[1]
-                save_edit_values.must_equal = menu[#menu]
-            else
-                for i, v in pairs(save_list_selected) do
-                    save_list_selected[i].value = menu[1]
-                    save_list_selected[i].freeze = save_edit_values.freeze
-                end
-                gg.setValues(save_list_selected)
-                gg.addListItems(save_list_selected)
-                local save_edit_indexes = {}
+                save_edit_values.edit_value = editValue
+                save_edit_values.must_equal = mustEqual
+            end
+            if menu[7] == true then -- Edit All Instances ~= To Value Below (Only select one)
                 local save_list_all = gg.getListItems()
-                for i, v in pairs(save_list_selected) do
-                    for index, value in pairs(save_list_all) do
-                        if v.address == value.address then
-                            table.insert(save_edit_indexes, index)
-                        end
+                for i, v in pairs(save_list_all) do
+                    if save_list_all[i].value ~= mustEqual then
+                        save_list_all[i].value = editValue
+                        save_list_all[i].freeze = save_edit_values.freeze
                     end
                 end
-                save_edit_values.edit_type = "edit_indexes"
-                save_edit_values.edit_value = menu[1]
-                save_edit_values.edit_indexes = save_edit_indexes
+                gg.setValues(save_list_all)
+                gg.addListItems(save_list_all)
+                save_edit_values.edit_type = "edit_all_that_do_not_equal"
+                save_edit_values.edit_value = editValue
+                save_edit_values.must_equal = mustEqual
+            end
+            if menu[8] == true then -- Edit All Instances <= To Value Below (Only select one)
+                local save_list_all = gg.getListItems()
+                for i, v in pairs(save_list_all) do
+                    if save_list_all[i].value <= mustEqual then
+                        save_list_all[i].value = editValue
+                        save_list_all[i].freeze = save_edit_values.freeze
+                    end
+                end
+                gg.setValues(save_list_all)
+                gg.addListItems(save_list_all)
+                save_edit_values.edit_type = "edit_all_less_equal"
+                save_edit_values.edit_value = editValue
+                save_edit_values.must_equal = mustEqual
+            end
+            if menu[9] == true then -- Edit All Instances >= To Value Below (Only select one)
+                local save_list_all = gg.getListItems()
+                for i, v in pairs(save_list_all) do
+                    if save_list_all[i].value >= mustEqual then
+                        save_list_all[i].value = editValue
+                        save_list_all[i].freeze = save_edit_values.freeze
+                    end
+                end
+                gg.setValues(save_list_all)
+                gg.addListItems(save_list_all)
+                save_edit_values.edit_type = "edit_all_greater_equal"
+                save_edit_values.edit_value = editValue
+                save_edit_values.must_equal = mustEqual
+            end
+            if menu[10] == true then -- Edit All Instances In Range Below (Only select one)
+                local save_list_all = gg.getListItems()
+                local minValue = tonumber(menu[#menu]:gsub("(.+)~.+", "%1"))
+                local maxValue = tonumber(menu[#menu]:gsub(".+~(.+)", "%1"))
+                for i, v in pairs(save_list_all) do
+                    if save_list_all[i].value >= minValue and save_list_all[i].value <= maxValue then
+                        save_list_all[i].value = editValue
+                        save_list_all[i].freeze = save_edit_values.freeze
+                    end
+                end
+                gg.setValues(save_list_all)
+                gg.addListItems(save_list_all)
+                save_edit_values.edit_type = "edit_all_in_range"
+                save_edit_values.edit_value = editValue
+                save_edit_values.must_equal = mustEqual
+            end
+            if menu[11] == true then -- Edit All Instances NOT In Range Below (Only select one)
+                local save_list_all = gg.getListItems()
+                local minValue = tonumber(menu[#menu]:gsub("(.+)~.+", "%1"))
+                local maxValue = tonumber(menu[#menu]:gsub(".+~(.+)", "%1"))
+                for i, v in pairs(save_list_all) do
+                    if save_list_all[i].value < minValue or save_list_all[i].value > maxValue then
+                        save_list_all[i].value = editValue
+                        save_list_all[i].freeze = save_edit_values.freeze
+                    end
+                end
+                gg.setValues(save_list_all)
+                gg.addListItems(save_list_all)
+                save_edit_values.edit_type = "edit_all_not_in_range"
+                save_edit_values.edit_value = editValue
+                save_edit_values.must_equal = mustEqual
             end
             save_edit_values.edit_namespace = edit_namespace
             ::enter_name::
-            local name_edit = gg.prompt({bc.Prompt("Enter Name For Edit","ℹ️")}, {save_edit_values.field_name}, {"text"})
+            local name_edit = gg.prompt({bc.Prompt("Enter Name For Edit", "ℹ️")}, {save_edit_values.field_name}, {"text"})
             if name_edit == nil then
                 goto enter_name
             end
@@ -421,270 +504,97 @@ il2cppFields = {
     end,
     --    il2cppFields.doSavedEdit(saved_edit_table)
     doSavedEdit = function(saved_edit_table)
-        local string_address = {}
-        local class_headers = {}
-        local get_number_of_fields = {}
-        local first_field_address = {}
-        local field_data = ""
-        local field_name_pointer = ""
-        local type_pointer = ""
-        local class_pointer = ""
-        local field_offset = ""
-        local current_address = ""
-        local get_field_name = {}
-        local offset = 0
-        local count = 1
-        local field_data = {}
-        local field_name = ""
-        local get_type = {}
-        local field_type = {}
-        local pointers_to_instances = {}
+        local header_offset
+        if arch.x64 then
+            header_offset = 16
+        else
+            header_offset = 8
+        end
         gg.clearList()
-        working_class = saved_edit_table.class_name
+        local class_name = saved_edit_table.class_name
+        local field_name = saved_edit_table.field_name
+        local namespace_name = saved_edit_table.edit_namespace
         gg.setRanges(gg.REGION_OTHER)
         gg.clearResults()
-        gg.searchNumber(Il2Cpp.createSearch(saved_edit_table.class_name), gg.TYPE_BYTE, false, gg.SIGN_EQUAL, range_start, range_end)
-        string_address = gg.getResults(1, 1)
-        if gg.getResultsCount() == 0 then
-            none_found = true
-            goto none
+        gg.searchNumber(Il2Cpp.createSearch(class_name), gg.TYPE_BYTE, false, gg.SIGN_EQUAL, range_start, range_end)
+        local class_string = gg.getResults(1, 1)
+        local namespace_string
+        if namespace_name ~= "" then
+            gg.clearResults()
+            gg.searchNumber(Il2Cpp.createSearch(namespace_name), gg.TYPE_BYTE, false, gg.SIGN_EQUAL, range_start, range_end)
+            namespace_string = gg.getResults(1, 1)
+            namespace_string = Il2Cpp.ggHex(namespace_string[1].address, false)
+        else
+            if Il2Cpp.getString(range_start - 55) == "NULL" then
+                namespace_string = Il2Cpp.ggHex(range_start - 56, false)
+            else
+                namespace_string = Il2Cpp.ggHex(range_start - 19, false)
+            end
         end
-        string_address = string_address[1].address
         gg.clearResults()
-        gg.setRanges(gg.REGION_C_ALLOC)
-        gg.searchNumber(string_address, flag_type)
-        class_headers = gg.getResults(gg.getResultsCount())
-        if gg.getResultsCount() == 0 then
-            none_found = true
-            goto none
+        gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)
+        gg.searchNumber(Il2Cpp.ggHex(class_string[1].address, false) .. ";" .. namespace_string .. "::9", flag_type)
+        local results = gg.getResults(1)
+        local class_header = results[1].address - header_offset
+        local field_count = {{
+            address = class_header + Il2Cpp.ClassApiCountFields,
+            flags = gg.TYPE_DWORD
+        }}
+        field_count = gg.getValues(field_count)
+        field_count = field_count[1].value
+        local field_pointer = {{
+            address = class_header + Il2Cpp.ClassApiFieldsLink,
+            flags = flag_type
+        }}
+        field_pointer = gg.getValues(field_pointer)
+        field_pointer = Il2Cpp.ggHex(field_pointer[1].value)
+        local correct_field
+        for i = 1, field_count do
+            local checkString = {{
+                address = field_pointer,
+                flags = flag_type
+            }}
+            checkString = gg.getValues(checkString)
+            checkString = Il2Cpp.getString(checkString[1].value)
+            if field_name == checkString then
+                correct_field = field_pointer
+                break
+            end
+            field_pointer = field_pointer + Il2Cpp.ClassApiFieldsStep
         end
-        for i, v in pairs(class_headers) do
-            class_headers[i].address = class_headers[i].address - Il2Cpp.ClassApiNameOffset
-        end
+        local field_offset = {{
+            address = correct_field + Il2Cpp.FieldApiOffset,
+            flags = gg.TYPE_DWORD
+        }}
+        field_offset = gg.getValues(field_offset)
+        field_offset = field_offset[1].value
         gg.clearResults()
         gg.setRanges(gg.REGION_ANONYMOUS)
-        gg.loadResults(class_headers)
-        gg.searchPointer(0)
-        instance_headers = gg.getResults(gg.getResultsCount())
-        found_classes = {}
-        for i, v in ipairs(instance_headers) do
-            if not found_classes[tostring(v.value)] then
-                found_classes[tostring(v.value)] = 0
-            else
-                found_classes[tostring(v.value)] = found_classes[tostring(v.value)] + 1
-            end
-        end
-        found_classes_sorted = {}
-        for k, v in pairs(found_classes) do
-            found_classes_sorted[#found_classes_sorted + 1] = {
-                class_address = k,
-                pointers_to = v
-            }
-        end
-        namespace_names = {}
-        for i, v in ipairs(found_classes_sorted) do
-            namespace_string_address = {}
-            namespace_string_address[1] = {}
-            namespace_string_address[1].address = v.class_address + Il2Cpp.ClassApiNameSpaceOffset
-            namespace_string_address[1].flags = flag_type
-            namespace_string_address = gg.getValues(namespace_string_address)
-            namespace_name = Il2Cpp.getString(namespace_string_address[1].value)
-            if namespace_name == saved_edit_table.edit_namespace then
-                gg.refineNumber(found_classes_sorted[i].class_address, flag_type)
-                instance_headers = gg.getResults(gg.getResultCount())
-                break
-            end
-        end
-        if gg.getResultsCount() == 0 then
-            none_found = true
-            goto none
-        end
-        class_header = instance_headers[1].value
-        first_field_address = {}
-        first_field_address[1] = {}
-        first_field_address[1].address = class_header + Il2Cpp.ClassApiFieldsLink
-        first_field_address[1].flags = flag_type
-        first_field_address = gg.getValues(first_field_address)
-        first_field_address = first_field_address[1].value
-        get_num_fields_start = first_field_address + Il2Cpp.FieldApiOffset
-        get_num_fields_offset = Il2Cpp.ClassApiFieldsStep
-        num_offset = 0
-        num_field_data = {}
-        for i = 1, 1000 do
-            num_field_data[i] = {}
-            num_field_data[i].address = get_num_fields_start + num_offset
-            num_field_data[i].flags = gg.TYPE_DWORD
-            num_offset = num_offset + get_num_fields_offset
-        end
-        num_field_data = gg.getValues(num_field_data)
-        field_counter = 0
-        last_field_offset = 0
-        for i, v in pairs(num_field_data) do
-            if v.value >= last_field_offset or v.value == 0 then
-                if v.value >= last_field_offset then
-                    last_field_offset = v.value
-                end
-                field_counter = field_counter + 1
-            else
-                break
-            end
-        end
-        field_data = ""
-        field_name_pointer = ""
-        type_pointer = ""
-        class_pointer = ""
-        field_offset = ""
-        fields = {}
-        number_of_fields = field_counter
-        current_address = first_field_address
-        for i = 1, number_of_fields do
-            if il2cppFields.arch.x64 then
-                field_data = {}
-                field_data[1] = {}
-                field_data[1].address = current_address
-                field_data[1].flags = gg.TYPE_QWORD
-                current_address = current_address + 4
-                field_data[2] = {}
-                field_data[2].address = current_address
-                field_data[2].flags = gg.TYPE_DWORD
-                current_address = current_address + 4
-                field_data[3] = {}
-                field_data[3].address = current_address
-                field_data[3].flags = gg.TYPE_QWORD
-                current_address = current_address + 4
-                field_data[4] = {}
-                field_data[4].address = current_address
-                field_data[4].flags = gg.TYPE_DWORD
-                current_address = current_address + 4
-                field_data[5] = {}
-                field_data[5].address = current_address
-                field_data[5].flags = gg.TYPE_DWORD
-                current_address = current_address + 4
-                field_data[6] = {}
-                field_data[6].address = current_address
-                field_data[6].flags = gg.TYPE_DWORD
-                current_address = current_address + 4
-                field_data[7] = {}
-                field_data[7].address = current_address
-                field_data[7].flags = gg.TYPE_DWORD
-                current_address = current_address + 4
-                field_data[8] = {}
-                field_data[8].address = current_address
-                field_data[8].flags = gg.TYPE_DWORD
-                current_address = current_address + 4
-                field_data = gg.getValues(field_data)
-                field_name_pointer = field_data[1].value
-                type_pointer = field_data[3].value
-                class_pointer = field_data[5].value
-                field_offset = field_data[7].value
-            else
-                field_data = {}
-                field_data[1] = {}
-                field_data[1].address = current_address
-                field_data[1].flags = gg.TYPE_DWORD
-                current_address = current_address + 4
-                field_data[2] = {}
-                field_data[2].address = current_address
-                field_data[2].flags = gg.TYPE_DWORD
-                current_address = current_address + 4
-                field_data[3] = {}
-                field_data[3].address = current_address
-                field_data[3].flags = gg.TYPE_DWORD
-                current_address = current_address + 4
-                field_data[4] = {}
-                field_data[4].address = current_address
-                field_data[4].flags = gg.TYPE_DWORD
-                current_address = current_address + 4
-                field_data[5] = {}
-                field_data[5].address = current_address
-                field_data[5].flags = gg.TYPE_DWORD
-                current_address = current_address + 4
-                field_data = gg.getValues(field_data)
-                field_name_pointer = field_data[1].value
-                type_pointer = field_data[2].value
-                class_pointer = field_data[3].value
-                field_offset = field_data[4].value
-            end
-            field_name = Il2Cpp.getString(field_name_pointer)
-            get_type = {}
-            get_type[1] = {}
-            get_type[1].address = type_pointer
-            get_type[1].flags = gg.TYPE_DWORD
-            field_type = gg.getValues(get_type)
-            field_type = field_type[1].value
-            if #tostring(field_type) > 8 then
-                get_type = {}
-                get_type[1] = {}
-                get_type[1].address = type_pointer + 4
-                get_type[1].flags = gg.TYPE_DWORD
-                field_type = gg.getValues(get_type)
-                field_type = field_type[1].value
-            end
-            if Il2Cpp.method_types[tostring(field_type)] and Il2Cpp.method_types[tostring(field_type)] == "Single" then
-                value_type = gg.TYPE_FLOAT
-            elseif Il2Cpp.method_types[tostring(field_type)] and Il2Cpp.method_types[tostring(field_type)] == "Double" then
-                value_type = gg.TYPE_DOUBLE
-            elseif (field_offset % 2 ~= 0) then
-                value_type = gg.TYPE_BYTE
-            else
-                value_type = gg.TYPE_DWORD
-            end
-            if value_type and field_offset and field_name:find( "[A-Za-z]") then
-                type_menu = "?" .. field_type .. "?"
-                if Il2Cpp.method_types[tostring(field_type)] then
-                    type_menu = Il2Cpp.method_types[tostring(field_type)]
-                end
-                fields[#fields + 1] = {
-                    field_name = field_name,
-                    field_offset = il2cppFields.f_hex(field_offset),
-                    field_type = value_type,
-                    type_menu = type_menu
-                }
-            end
-        end
-        gg.clearResults()
-        gg.setRanges(gg.REGION_C_ALLOC | gg.REGION_ANONYMOUS)
-        gg.loadResults(instance_headers)
-        gg.searchPointer(0)
-        pointers_to_instances = gg.getResults(gg.getResultsCount())
-        sorted_instance_headers = {}
-        added_headers = {}
-        for i, v in pairs(pointers_to_instances) do
-            if not added_headers[v.value] then
-                added_headers[v.value] = v.value
-                table.insert(sorted_instance_headers, v)
-            end
-        end
-        gg.loadResults(sorted_instance_headers)
-        sorted_instance_headers = gg.getResults(gg.getResultsCount())
-        for i, v in pairs(fields) do
-            if saved_edit_table.field_name:gsub(string.char(0), "") == v.field_name:gsub(string.char(0), "") then
-                edit_offset = v.field_offset
-                edit_type = v.field_type
-            end
-        end
+        gg.searchNumber(class_header, flag_type)
+        local results = gg.getResults(gg.getResultsCount())
         load_field_values = {}
-        for i, v in pairs(sorted_instance_headers) do
+        local value_type = saved_edit_table.value_type
+        for i, v in pairs(results) do
             load_field_values[i] = v
-            load_field_values[i].address = v.value + edit_offset
-            load_field_values[i].flags = edit_type
+            load_field_values[i].address = v.address + field_offset
+            load_field_values[i].flags = value_type
         end
-        gg.setValues(load_field_values)
         gg.addListItems(load_field_values)
         if saved_edit_table.edit_type == "edit_all_x4" then
             local save_list_all = gg.getListItems()
             for i, v in pairs(save_list_all) do
                 save_list_all[i].address = save_list_all[i].address + 4
                 if tonumber(saved_edit_table.edit_value) == 0 then
-                        save_list_all[i].value = save_list_all[i].value
-                    else
-                        save_list_all[i].value = saved_edit_table.edit_value .. "X4"
+                    save_list_all[i].value = save_list_all[i].value
+                else
+                    save_list_all[i].value = saved_edit_table.edit_value .. "X4"
                 end
                 save_list_all[i].freeze = saved_edit_table.freeze
             end
             gg.setValues(save_list_all)
             gg.addListItems(save_list_all)
-        elseif saved_edit_table.edit_type == "edit_indexes" then
+        end
+        if saved_edit_table.edit_type == "edit_indexes" then
             local save_list_all = gg.getListItems()
             for i, v in pairs(saved_edit_table.edit_indexes) do
                 save_list_all[v].value = saved_edit_table.edit_value
@@ -692,7 +602,8 @@ il2cppFields = {
             end
             gg.setValues(save_list_all)
             gg.addListItems(save_list_all)
-        elseif saved_edit_table.edit_type == "edit_all_that_equal" then
+        end
+        if saved_edit_table.edit_type == "edit_all_that_equal" then
             local save_list_all = gg.getListItems()
             for i, v in pairs(save_list_all) do
                 if v.value == saved_edit_table.must_equal then
@@ -702,7 +613,8 @@ il2cppFields = {
             end
             gg.setValues(save_list_all)
             gg.addListItems(save_list_all)
-        elseif saved_edit_table.edit_type == "edit_all" then
+        end
+        if saved_edit_table.edit_type == "edit_all" then
             local save_list_all = gg.getListItems()
             for i, v in pairs(save_list_all) do
                 save_list_all[i].value = saved_edit_table.edit_value
@@ -711,15 +623,70 @@ il2cppFields = {
             gg.setValues(save_list_all)
             gg.addListItems(save_list_all)
         end
-        fields = {}
-        ::none::
-        if none_found == true then
-            bc.Alert("No Class Instances Found", "", "ℹ️")
-            none_found = false
-        else
-            bc.Toast("Edits Made ","ℹ️")
-            il2cppFields.home()
+        if saved_edit_table.edit_type == "edit_all_that_do_not_equal" then -- Edit All Instances ~= To Value Below (Only select one)
+            local save_list_all = gg.getListItems()
+            for i, v in pairs(save_list_all) do
+                if save_list_all[i].value ~= saved_edit_table.must_equal then
+                    save_list_all[i].value = saved_edit_table.edit_value
+                    save_list_all[i].freeze = saved_edit_table.freeze
+                end
+            end
+            gg.setValues(save_list_all)
+            gg.addListItems(save_list_all)
         end
+        if saved_edit_table.edit_type == "edit_all_less_equal" then -- Edit All Instances <= To Value Below (Only select one)
+            local save_list_all = gg.getListItems()
+            for i, v in pairs(save_list_all) do
+                if save_list_all[i].value <= saved_edit_table.must_equal then
+                    save_list_all[i].value = saved_edit_table.edit_value
+                    save_list_all[i].freeze = saved_edit_table.freeze
+                end
+            end
+            gg.setValues(save_list_all)
+            gg.addListItems(save_list_all)
+        end
+        if saved_edit_table.edit_type == "edit_all_greater_equal" then -- Edit All Instances >= To Value Below (Only select one)
+            local save_list_all = gg.getListItems()
+            for i, v in pairs(save_list_all) do
+                if save_list_all[i].value >= saved_edit_table.must_equal then
+                    save_list_all[i].value = saved_edit_table.edit_value
+                    save_list_all[i].freeze = saved_edit_table.freeze
+                end
+            end
+            gg.setValues(save_list_all)
+            gg.addListItems(save_list_all)
+        end
+        if saved_edit_table.edit_type == "edit_all_in_range" then -- Edit All Instances In Range Below (Only select one)
+            local save_list_all = gg.getListItems()
+            local minValue = tonumber(saved_edit_table.must_equal:gsub("(.+)~.+", "%1"))
+            local maxValue = tonumber(saved_edit_table.must_equal:gsub(".+~(.+)", "%1"))
+            for i, v in pairs(save_list_all) do
+                if save_list_all[i].value >= minValue and save_list_all[i].value <= maxValue then
+                    save_list_all[i].value = saved_edit_table.edit_value
+                    save_list_all[i].freeze = saved_edit_table.freeze
+                end
+            end
+            gg.setValues(save_list_all)
+            gg.addListItems(save_list_all)
+        end
+        if saved_edit_table.edit_type == "edit_all_not_in_range" then -- Edit All Instances NOT In Range Below (Only select one)
+            local save_list_all = gg.getListItems()
+            local minValue = tonumber(saved_edit_table.must_equal:gsub("(.+)~.+", "%1"))
+            local maxValue = tonumber(saved_edit_table.must_equal:gsub(".+~(.+)", "%1"))
+            for i, v in pairs(save_list_all) do
+                if save_list_all[i].value < minValue or save_list_all[i].value > maxValue then
+                    save_list_all[i].value = saved_edit_table.edit_value
+                    save_list_all[i].freeze = saved_edit_table.freeze
+                end
+            end
+            gg.setValues(save_list_all)
+            gg.addListItems(save_list_all)
+        end
+
+        fields = {}
+
+        bc.Toast("Edits Made ", "ℹ️")
+        il2cppFields.home()
     end,
     --    il2cppFields.deleteEdit()
     deleteEdit = function()
@@ -753,7 +720,7 @@ il2cppFields = {
                         goto get_next
                     end
                     il2cppFields.saveConfig()
-                    bc.Toast("Edits Deleted ","✅")
+                    bc.Toast("Edits Deleted ", "✅")
                 end
             end
         end
@@ -773,9 +740,9 @@ il2cppFields = {
             local path1 = il2cppFields.savePath .. "/" .. gg.getTargetPackage() .. "_"
             local path2 = os.date()
             local path3 = "_export.json"
-            local filePath 
+            local filePath
             ::path::
-            filePath = path1..path2..path3
+            filePath = path1 .. path2 .. path3
             local file = io.open(filePath, "w+")
             if file == nil then
                 path2 = os.time()
@@ -783,28 +750,29 @@ il2cppFields = {
             end
             file:write(json.encode(to_export))
             file:close()
-            bc.Alert("Edits Exported", filePath,"✅")
+            bc.Alert("Edits Exported", filePath, "✅")
         end
     end,
     --    il2cppFields.importEdits()
     importEdits = function()
-        local menu = gg.prompt({bc.Prompt("Select JSON File","ℹ️")}, {
+        local menu = gg.prompt({bc.Prompt("Select JSON File", "ℹ️")}, {
             [1] = il2cppFields.savePath .. "/"
         }, {
             [1] = "file"
         })
         if menu == nil then
         end
-        if menu ~= nil and menu[1]:find( "%.json") then
+        if menu ~= nil and menu[1]:find("%.json") then
             local import_table = bc.readFile(menu[1], true)
             for i, v in pairs(import_table) do
                 il2cppFields.savedEditsTable[#il2cppFields.savedEditsTable + 1] = v
             end
             il2cppFields.saveConfig()
-            bc.Toast("Edits Imported ","✅")
+            bc.Toast("Edits Imported ", "✅")
         end
     end,
     --    il2cppFields.home()
+    plugin_title = "Plugin: Il2Cpp Fields",
     home = function(passed_data)
         pM.returnHome = true
         pM.returnPluginTable = "il2cppFields"
@@ -819,12 +787,12 @@ il2cppFields = {
                     if menu == 1 then
                         il2cppFields.saveConfig()
                         making_edit = false
-                        bc.Toast("Edit saved ","✅")
+                        bc.Toast("Edit saved ", "✅")
                     end
                     if menu == 2 then
                         table.remove(il2cppFields.savedEditsTable, #il2cppFields.savedEditsTable)
                         making_edit = false
-                        bc.Toast("Edit discarded ","🗑️")
+                        bc.Toast("Edit discarded ", "🗑️")
                     end
                     il2cppFields.home()
                 end
@@ -856,7 +824,7 @@ il2cppFields = {
                 menu_items[#menu_items + 1] = "🗑️ Delete Edits"
                 menu_items[#menu_items + 1] = "ℹ️ About Script"
                 menu_items[#menu_items + 1] = "❌ Exit Script"
-                local menu = gg.choice(menu_items, nil, script_title)
+                local menu = gg.choice(menu_items, nil, bc.Choice(il2cppFields.plugin_title, "", "ℹ️"))
                 if menu ~= nil then
                     if menu < #menu_items - 7 then
                         il2cppFields.doSavedEdit(il2cppFields.savedEditsTable[menu])
@@ -916,6 +884,13 @@ il2cppFields = {
     end,
     other_ranges = {},
     fieldOffsets = {},
+    cleanOldStrings = function()
+        for i, v in pairs(il2cppFields.savedEditsTable) do
+            il2cppFields.savedEditsTable[i].class_name = v.class_name:gsub(string.char(0), "")
+            il2cppFields.savedEditsTable[i].field_name = v.field_name:gsub(string.char(0), "")
+            il2cppFields.savedEditsTable[i].edit_namespace = v.edit_namespace:gsub(string.char(0), "")
+        end
+    end,
     setup = function()
         if il2cppFields.arch.x64 then
             flag_type = gg.TYPE_QWORD
@@ -928,29 +903,13 @@ il2cppFields = {
             bc.createDirectory(il2cppFields.savePath)
             il2cppFields.savedEditsTable = {}
             il2cppFields.saveConfig()
+        else
+            il2cppFields.cleanOldStrings()
         end
         pcall(il2cppFields.checkMethodTypes)
         Il2Cpp.scriptSettings = {false, false, false, false, false, false, false, false}
         ::set_settings::
-        local settingsMenu = gg.prompt({
-            "Filter Class Results (Faster Class Scan)", 
-            "Re-Dump Fields and Types", 
-            "Manually Select Unity Build", 
-            "Alternate Get Strings (If Freezes At Start)", 
-            "Debug"
-        }, {
-            true, 
-            false, 
-            false, 
-            false, 
-            false
-        }, {
-            "checkbox", 
-            "checkbox", 
-            "checkbox", 
-            "checkbox", 
-            "checkbox"
-        })
+        local settingsMenu = gg.prompt({"Filter Class Results (Faster Class Scan)", "Re-Dump Fields and Types", "Manually Select Unity Build", "Alternate Get Strings (If Freezes At Start)", "Debug"}, {true, false, false, false, false}, {"checkbox", "checkbox", "checkbox", "checkbox", "checkbox"})
         if settingsMenu == nil then
             goto set_settings
         else
@@ -1070,37 +1029,7 @@ il2cppFields = {
     end,
     search = function()
         search_list = {}
-        local menu = gg.prompt({
-            "Search Term", 
-            "Additional Search Term", 
-            "Case Sensitive", 
-            "Class Names", 
-            "Field Names", 
-            "Field Types", 
-            "Image Names", 
-            "Namespace Names", 
-            "Parent Class Names"
-        }, {
-            "", 
-            "", 
-            true, 
-            true, 
-            true, 
-            true, 
-            true, 
-            true, 
-            true
-        }, {
-            "text", 
-            "text", 
-            "checkbox", 
-            "checkbox", 
-            "checkbox", 
-            "checkbox", 
-            "checkbox", 
-            "checkbox", 
-            "checkbox"
-        })
+        local menu = gg.prompt({"Search Term", "Additional Search Term", "Case Sensitive", "Class Names", "Field Names", "Field Types", "Image Names", "Namespace Names", "Parent Class Names"}, {"", "", true, true, true, true, true, true, true}, {"text", "text", "checkbox", "checkbox", "checkbox", "checkbox", "checkbox", "checkbox", "checkbox"})
         if menu ~= nil then
             local search_string = menu[1]
             local search_string2
@@ -1142,7 +1071,7 @@ il2cppFields = {
                                             end
                                         end
                                         if ind == 6 then
-                                            class_value = value.field_type
+                                            class_value = tostring(value.field_type)
                                             if menu[3] == false then
                                                 class_value = string.lower(class_value)
                                             end
@@ -1158,15 +1087,18 @@ il2cppFields = {
                             end
                         else
                             if val == true then
-                                local class_value = class_vals[ind]
-                                if menu[3] == false then
-                                    class_value = string.lower(class_value)
-                                end
-                                if class_value:find(search_string) then
-                                    search_string_found = true
-                                end
-                                if search_string2 and class_value:find(search_string2) then
-                                    search_string2_found = true
+
+                                if class_vals[ind] then
+                                    local class_value = class_vals[ind]
+                                    if menu[3] == false then
+                                        class_value = string.lower(class_value)
+                                    end
+                                    if class_value:find(search_string) then
+                                        search_string_found = true
+                                    end
+                                    if search_string2 and class_value:find(search_string2) then
+                                        search_string2_found = true
+                                    end
                                 end
                             end
                         end
@@ -1263,7 +1195,7 @@ Here you can export edits you have created to share them with other users of the
 🗑️ Delete Edit
 Here you can delete edits for a game and remove them from the main menu.
 ]])
-    end,
+    end
 }
 
 il2cppFields.setup()
@@ -1271,4 +1203,4 @@ gg.clearList()
 
 pM.returnHome = true
 pM.returnPluginTable = "il2cppFields"
-bc.Alert("Plugin Loaded", "if launched directly press the floating [Sx] button to open the menu.","ℹ️")
+bc.Alert("Plugin Loaded", "if launched directly press the floating [Sx] button to open the menu.", "ℹ️")

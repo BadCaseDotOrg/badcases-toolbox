@@ -16,6 +16,9 @@ il2cppEdits = {
     end,
     checkForConfigFile = function()
         dofile(il2cppEdits.savePath .. gg.getTargetPackage() .. ".cfg")
+        for i, v in pairs(il2cppEdits.savedEditsTable) do
+            il2cppEdits.savedEditsTable[i].active = false
+        end
     end,
     --    il2cppEdits.refineResults(search_string)
     refineResults = function(search_string)
@@ -56,7 +59,7 @@ il2cppEdits = {
             local cfound = false
             method_name_address = il2cppEdits.searchDump(method_name)
             gg.clearResults()
-            gg.setRanges(gg.REGION_C_ALLOC | gg.REGION_C_HEAP)
+            gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)
             if get_first == true and method_name_address ~= nil then
                 gg.searchNumber(method_name_address, flag_type, nil, nil, nil, nil, 1)
             elseif method_name_address ~= nil then
@@ -115,361 +118,15 @@ il2cppEdits = {
                 methods_found[#methods_found].method_name = method_name
                 methods_found[#methods_found].il2cpp_address = il2cpp_address
                 methods_found[#methods_found].method_type = method_type
-                if not get_first then
-                    il2cppEdits.setDumpMethod(method_name, method_type, class_name)
-                end
             end
             ::not_found::
             if cfound == true then
-                bc.Toast(#methods_found .. " method(s) found for the string " .. method_name,"ℹ️")
+                bc.Toast(#methods_found .. " method(s) found for the string " .. method_name, "ℹ️")
                 return methods_found
             else
                 ::not_found::
-                bc.Toast("No methods were found for that string.","ℹ️")
+                bc.Toast("No methods were found for that string.", "ℹ️")
             end
-        end
-    end,
-    --    il2cppEdits.setDumpMethod(method_name, method_type, class_name)
-    setDumpMethod = function(method_name, method_type, class_name)
-        for i, v in pairs(il2cppEdits.parsed_strings_table) do
-            if v.il2cpp_string == method_name then
-                il2cppEdits.parsed_strings_table[i].method_type = method_type
-                if il2cppEdits.parsed_strings_table[i].class_names then
-                    local found = false
-                    for index, value in pairs(il2cppEdits.parsed_strings_table[i].class_names) do
-                        if value == class_name then
-                            found = true
-                        end
-                    end
-                    if found == false then
-                        il2cppEdits.parsed_strings_table[i].class_names[#il2cppEdits.parsed_strings_table[i].class_names + 1] = class_name
-                    end
-                else
-                    il2cppEdits.parsed_strings_table[i].class_names = {}
-                    il2cppEdits.parsed_strings_table[i].class_names[#il2cppEdits.parsed_strings_table[i].class_names + 1] = class_name
-                end
-            end
-        end
-    end,
-    --    il2cppEdits.getBoolEdit()
-    getBoolEdit = function()
-        local arm7Edit = {
-            isTrue = {"~A MOV R0, #1", "~A BX LR"},
-            isFalse = {"~A MOV R0, #0", "~A BX LR"}
-        }
-        local arm8Edit = {
-            isTrue = {"~A8 MOV W0, #1", "~A8 RET"},
-            isFalse = {"~A8 MOV W0, WZR", "~A8 RET"}
-        }
-        local menu = gg.choice({"True", "False"},nil, bc.Choice("Set Boolean Edit", "", "ℹ️"))
-        if menu ~= nil then
-            if menu == 1 then
-                return {arm7Edit.isTrue, arm8Edit.isTrue}
-            end
-            if menu == 2 then
-                return {arm7Edit.isFalse, arm8Edit.isFalse}
-            end
-        end
-    end,
-    --    il2cppEdits.getIntEdit()
-    getIntEdit = function()
-        local edits_arm7 = {}
-        local edits_arm8 = {}
-        ::set_val::
-        local menu = gg.prompt({bc.Prompt("Enter Number -255 to 65535","ℹ️")}, {nil}, {"number"})
-        if menu ~= nil then
-            if tonumber(menu[1]) < -256 or tonumber(menu[1]) > 65535 then
-                bc.Alert("Set A Valid Number", "Set a valid number from -255 to 65535.", "⚠️")
-                goto set_val
-            end
-            if tonumber(menu[1]) == 0 then
-                edits_arm8[1] = "~A8 MOV W0, WZR"
-            else
-                edits_arm8[1] = "~A8 MOV W0, #" .. menu[1]
-            end
-            edits_arm8[2] = "~A8 RET"
-            if menu[1]:find("[-]") then
-                edits_arm7[1] = "~A MVN R0, #" .. menu[1]:gsub("[-]", "")
-                edits_arm7[2] = "~A BX LR"
-            else
-                edits_arm7[1] = "~A MOVW R0, #" .. menu[1]
-                edits_arm7[2] = "~A BX LR"
-            end
-            return {edits_arm7, edits_arm8}
-        end
-    end,
-    --    il2cppEdits.getComplexFloatEdit(target, method_type)
-    getComplexFloatEdit = function(target, method_type)
-        target = tonumber(target)
-        local float_edits_arm7 = {}
-        local float_edits_arm8 = {}
-        if target <= 65535 and target >= 0 then
-            if method_type == "Single" then
-                float_edits_arm7[1] = "~A MOVW R0, #" .. target
-                float_edits_arm7[2] = "100A00EEr" -- VMOV S0, R0
-                float_edits_arm7[3] = "C00AB8EEr" -- VCVT.F32.S32 S0, S0
-                float_edits_arm7[4] = "100A10EEr" -- VMOV R0, S0
-                float_edits_arm7[5] = "1EFF2FE1r" -- BX LR
-                if target == 0 then
-                    float_edits_arm8[1] = "~A8 MOV W0, WZR"
-                else
-                    float_edits_arm8[1] = "~A8 MOV W0, #" .. target
-                end
-                float_edits_arm8[2] = "0000271Er" -- FMOV S0, W0
-                float_edits_arm8[3] = "00D8215Er" -- SCVTF S0, S0
-                float_edits_arm8[4] = "0000261Er" -- FMOV W0, S0
-                float_edits_arm8[5] = "C0035FD6r" -- RET
-            elseif method_type == "Double" then
-                float_edits_arm7[1] = "~A MOVW R0, #" .. target
-                float_edits_arm7[2] = "~A VMOV S0, R0"
-                float_edits_arm7[3] = "~A VCVT.F64.U32 D0, S0"
-                float_edits_arm7[4] = "~A VMOV R0, R1, D0"
-                float_edits_arm7[5] = "1EFF2FE1r" -- BX LR
-                if target == 0 then
-                    float_edits_arm8[1] = "~A8 MOV W0, WZR"
-                else
-                    float_edits_arm8[1] = "~A8 MOV W0, #" .. target
-                end
-                float_edits_arm8[2] = "~A8 SCVTF D0, W0"
-                float_edits_arm8[3] = "C0035FD6r" -- RET
-            end
-        end
-        if target <= 131072 and target >= 65537 then
-            float_val_2 = target - 65535
-            if method_type == "Single" then
-                float_edits_arm7[1] = "~A MOVW R0, #65535"
-                float_edits_arm7[2] = "~A MOVW R1, #" .. float_val_2
-                float_edits_arm7[3] = "010080E0r" -- ADD R0, R0, R1
-                float_edits_arm7[4] = "100A00EEr" -- VMOV S0, R0
-                float_edits_arm7[5] = "C00AB8EEr" -- VCVT.F32.S32 S0, S0
-                float_edits_arm7[6] = "100A10EEr" -- VMOV R0, S0
-                float_edits_arm7[7] = "1EFF2FE1r" -- BX LR
-                float_edits_arm8[1] = "~A8 MOV W0, #65535"
-                float_edits_arm8[2] = "~A8 MOV W1, #" .. float_val_2
-                float_edits_arm8[3] = "0000010Br" -- ADD W0, W0, W1
-                float_edits_arm8[4] = "0000271Er" -- FMOV S0, W0
-                float_edits_arm8[5] = "00D8215Er" -- SCVTF S0, S0
-                float_edits_arm8[6] = "0000261Er" -- FMOV W0, S0
-                float_edits_arm8[7] = "C0035FD6r" -- RET
-            elseif method_type == "Double" then
-                float_edits_arm7[1] = "~A MOVW R0, #65535"
-                float_edits_arm7[2] = "~A MOVW R1,  #" .. float_val_2
-                float_edits_arm7[3] = "~A ADD R0, R0, R1"
-                float_edits_arm7[4] = "~A VMOV S0, R0"
-                float_edits_arm7[5] = "~A VCVT.F64.U32 D0, S0"
-                float_edits_arm7[6] = "~A VMOV R0, R1, D0"
-                float_edits_arm7[7] = "1EFF2FE1r" -- BX LR
-                float_edits_arm8[1] = "~A8 MOV W0, #65535"
-                float_edits_arm8[2] = "~A8 MOV W1,  #" .. float_val_2
-                float_edits_arm8[3] = "~A8 ADD W0, W0, W1"
-                float_edits_arm8[4] = "~A8 SCVTF D0, W0"
-                float_edits_arm8[5] = "C0035FD6r" -- RET
-            end
-        end
-        if target > 131072 and target < 429503284 then
-            for i = 2, 65536 do
-                rem = target % i
-                mult = i
-                sub_total = rem * mult
-                add_to = target - sub_total
-                if add_to <= 65536 and add_to > 0 then
-                    if method_type == "Single" then
-                        float_edits_arm7[1] = "~A MOVW R0, #" .. rem
-                        float_edits_arm7[2] = "~A MOVW R1, #" .. mult
-                        float_edits_arm7[3] = "900100E0r" -- MUL R0, R0, R1
-                        float_edits_arm7[4] = "~A MOVW R1, #" .. add_to
-                        float_edits_arm7[5] = "010080E0r" -- ADD R0, R0, R1
-                        float_edits_arm7[6] = "100A00EEr" -- VMOV S0, R0
-                        float_edits_arm7[7] = "C00AB8EEr" -- VCVT.F32.S32 S0, S0
-                        float_edits_arm7[8] = "100A10EEr" -- VMOV R0, S0
-                        float_edits_arm7[9] = "1EFF2FE1r" -- BX LR
-                        float_edits_arm8[1] = "~A8 MOV W0, #" .. rem
-                        float_edits_arm8[2] = "~A8 MOV W1, #" .. mult
-                        float_edits_arm8[3] = "007C011Br" -- MUL W0, W0, W1
-                        float_edits_arm8[4] = "~A8 MOV W1, #" .. add_to
-                        float_edits_arm8[5] = "0000010Br" -- ADD W0, W0, W1
-                        float_edits_arm8[6] = "0000271Er" -- FMOV S0, W0
-                        float_edits_arm8[7] = "00D8215Er" -- SCVTF S0, S0
-                        float_edits_arm8[8] = "0000261Er" -- FMOV W0, S0
-                        float_edits_arm8[9] = "C0035FD6r" -- RET
-                    elseif method_type == "Double" then
-                        float_edits_arm7[1] = "~A MOVW R0, #" .. rem
-                        float_edits_arm7[2] = "~A MOVW R1,  #" .. mult
-                        float_edits_arm7[3] = "~A MUL R0, R0, R1"
-                        float_edits_arm7[4] = "~A MOVW R1,  #" .. add_to
-                        float_edits_arm7[5] = "~A ADD R1, R0, R1"
-                        float_edits_arm7[6] = "~A VMOV S0, R0"
-                        float_edits_arm7[7] = "~A VCVT.F64.U32 D0, S0"
-                        float_edits_arm7[8] = "~A VMOV R0, R1, D0"
-                        float_edits_arm7[9] = "1EFF2FE1r" -- BX LR
-                        float_edits_arm8[1] = "~A8 MOV W0, #" .. rem
-                        float_edits_arm8[2] = "~A8 MOV W1,  #" .. mult
-                        float_edits_arm8[3] = "~A8 MUL W0, W0, W1"
-                        float_edits_arm8[4] = "~A8 MOV W1,  #" .. add_to
-                        float_edits_arm8[5] = "~A8 ADD W0, W0, W1"
-                        float_edits_arm8[6] = "~A8 SCVTF D0, W0"
-                        float_edits_arm8[7] = "C0035FD6r" -- RET
-                    end
-                    break
-                end
-            end
-            if target > 429503283 then
-                bc.Alert("Value Is Too High", "Set lower than 429503283.", "⚠️")
-            end
-            if target < 0 then
-                bc.Alert("Value Is Too Low", "Set to 0 or higher.", "⚠️")
-            end
-        end
-        if float_edits_arm7 and float_edits_arm8 then
-            return {float_edits_arm7, float_edits_arm8}
-        end
-    end,
-    --    il2cppEdits.simpleFloatsTable
-    simpleFloatsTable = {
-        ["ARM7"] = {{
-            ["hex_edits"] = "0101A0E3r",
-            ["float_value"] = 2
-        }, {
-            ["hex_edits"] = "4104A0E3r",
-            ["float_value"] = 8
-        }, {
-            ["hex_edits"] = "4204A0E3r",
-            ["float_value"] = 32
-        }, {
-            ["hex_edits"] = "4304A0E3r",
-            ["float_value"] = 128
-        }, {
-            ["hex_edits"] = "1103A0E3r",
-            ["float_value"] = 512
-        }, {
-            ["hex_edits"] = "4504A0E3r",
-            ["float_value"] = 2048
-        }, {
-            ["hex_edits"] = "4604A0E3r",
-            ["float_value"] = 8192
-        }, {
-            ["hex_edits"] = "4704A0E3r",
-            ["float_value"] = 32768
-        }, {
-            ["hex_edits"] = "1203A0E3r",
-            ["float_value"] = 131072
-        }, {
-            ["hex_edits"] = "4904A0E3r",
-            ["float_value"] = 524288
-        }, {
-            ["hex_edits"] = "0502A0E3r",
-            ["float_value"] = 8589934592
-        }, {
-            ["hex_edits"] = "5104A0E3r",
-            ["float_value"] = 34359738368
-        }, {
-            ["hex_edits"] = "5204A0E3r",
-            ["float_value"] = 137438953472
-        }, {
-            ["hex_edits"] = "5304A0E3r",
-            ["float_value"] = 549755813888
-        }, {
-            ["hex_edits"] = "1503A0E3r",
-            ["float_value"] = 2199023255552
-        }, {
-            ["hex_edits"] = "5504A0E3r",
-            ["float_value"] = 8796093022208
-        }, {
-            ["hex_edits"] = "5604A0E3r",
-            ["float_value"] = 35184372088832
-        }, {
-            ["hex_edits"] = "5704A0E3r",
-            ["float_value"] = 140737488355328
-        }, {
-            ["hex_edits"] = "1603A0E3r",
-            ["float_value"] = 562949953421312
-        }, {
-            ["hex_edits"] = "5904A0E3r",
-            ["float_value"] = 2251799813685248
-        }, {
-            ["hex_edits"] = "0602A0E3r",
-            ["float_value"] = 36893488147419103000
-        }},
-        ["ARM8"] = {{
-            ["hex_edits"] = "0000A852r",
-            ["float_value"] = 2
-        }, {
-            ["hex_edits"] = "0020A852r",
-            ["float_value"] = 8
-        }, {
-            ["hex_edits"] = "0040A852r",
-            ["float_value"] = 32
-        }, {
-            ["hex_edits"] = "0060A852r",
-            ["float_value"] = 128
-        }, {
-            ["hex_edits"] = "0080A852r",
-            ["float_value"] = 512
-        }, {
-            ["hex_edits"] = "00A0A852r",
-            ["float_value"] = 2048
-        }, {
-            ["hex_edits"] = "00C0A852r",
-            ["float_value"] = 8192
-        }, {
-            ["hex_edits"] = "00E0A852r",
-            ["float_value"] = 32768
-        }, {
-            ["hex_edits"] = "0000A952r",
-            ["float_value"] = 131072
-        }, {
-            ["hex_edits"] = "0020A952r",
-            ["float_value"] = 524288
-        }, {
-            ["hex_edits"] = "0000AA52r",
-            ["float_value"] = 8589934592
-        }, {
-            ["hex_edits"] = "0020AA52r",
-            ["float_value"] = 34359738368
-        }, {
-            ["hex_edits"] = "0040AA52r",
-            ["float_value"] = 137438953472
-        }, {
-            ["hex_edits"] = "0060AA52r",
-            ["float_value"] = 549755813888
-        }, {
-            ["hex_edits"] = "0080AA52r",
-            ["float_value"] = 2199023255552
-        }, {
-            ["hex_edits"] = "00A0AA52r",
-            ["float_value"] = 8796093022208
-        }, {
-            ["hex_edits"] = "00C0AA52r",
-            ["float_value"] = 35184372088832
-        }, {
-            ["hex_edits"] = "00E0AA52r",
-            ["float_value"] = 140737488355328
-        }, {
-            ["hex_edits"] = "0000AB52r",
-            ["float_value"] = 562949953421312
-        }, {
-            ["hex_edits"] = "0020AB52r",
-            ["float_value"] = 2251799813685248
-        }, {
-            ["hex_edits"] = "0000AC52r",
-            ["float_value"] = 36893488147419103000
-        }}
-    },
-    --    il2cppEdits.getSimpleFloatEdit()
-    getSimpleFloatEdit = function()
-        local edits_arm7 = {}
-        local edits_arm8 = {}
-        local menu_table = {}
-        for i, v in pairs(il2cppEdits.simpleFloatsTable["ARM7"]) do
-            menu_table[#menu_table + 1] = v.float_value
-        end
-        local menu = gg.choice(menu_table, nil, bc.Choice("Select Float Value", "", "ℹ️"))
-        if menu ~= nil then
-            edits_arm7[1] = il2cppEdits.simpleFloatsTable["ARM7"][menu].hex_edits
-            edits_arm7[2] = "~A BX LR"
-            edits_arm8[1] = il2cppEdits.simpleFloatsTable["ARM8"][menu].hex_edits
-            edits_arm8[2] = "~A8 RET"
-            return {edits_arm7, edits_arm8}
         end
     end,
     last_search = "",
@@ -493,7 +150,7 @@ il2cppEdits = {
         if not method_name then
             method_name = il2cppEdits.last_search
         end
-        local menu = gg.prompt({bc.Prompt("Enter A Method Name","ℹ️").."\nFor \"public bool get_IsUnlocked() { }\" you would enter \"get_IsUnlocked\""}, {method_name}, {"text"})
+        local menu = gg.prompt({bc.Prompt("Enter A Method Name", "ℹ️") .. "\nFor \"public bool get_IsUnlocked() { }\" you would enter \"get_IsUnlocked\""}, {method_name}, {"text"})
         if menu ~= nil then
             il2cppEdits.last_search = menu[1]
             local methods = il2cppEdits.getMethods(menu[1])
@@ -502,7 +159,7 @@ il2cppEdits = {
                 for i, v in pairs(methods) do
                     methods_menu_items[#methods_menu_items + 1] = "〰️〰️〰️〰️〰️〰️〰️〰️\nClass Name: " .. v.class_name .. "\nMethod Name: " .. v.method_name .. "\nMethod Type: " .. v.method_type .. "\n〰️〰️〰️〰️〰️〰️〰️〰️"
                 end
-                local methods_menu = gg.choice(methods_menu_items, nil,bc.Choice("Select Method To Edit", "", "ℹ️"))
+                local methods_menu = gg.choice(methods_menu_items, nil, bc.Choice("Select Method To Edit", "", "ℹ️"))
                 if methods_menu ~= nil then
                     local class_name = methods[methods_menu].class_name
                     local method_name = methods[methods_menu].method_name
@@ -512,14 +169,14 @@ il2cppEdits = {
                         method_name = method_name
                     }
                     ::select_edit_type::
-                    local menu_type = {"Boolean", "Integer", "Single (float)", "Double"}
+                    local menu_type = {"Boolean", "Integer", "Single (float)", "Double", "End Function", "Hook Function", "Call Function"}
                     local edit_type = gg.choice(menu_type, nil, bc.Choice("Select Type Of Edit", "", "ℹ️"))
                     if edit_type ~= nil then
                         if edit_type == 1 then
-                            edits = il2cppEdits.getBoolEdit()
+                            edits = Il2Cpp.getBoolEdit()
                         end
                         if edit_type == 2 then
-                            edits = il2cppEdits.getIntEdit()
+                            edits = Il2Cpp.getIntEdit()
                         end
                         if edit_type == 3 then
                             local space_limit = il2cppEdits.getValues(il2cpp_address)
@@ -534,15 +191,15 @@ il2cppEdits = {
                             end
                             if max_value > 0 then
                                 ::set_value::
-                                local set_val = gg.prompt({bc.Prompt("Set Float Value (Max " .. max_value .. ")","ℹ️")}, nil, {"number"})
+                                local set_val = gg.prompt({bc.Prompt("Set Float Value (Max " .. max_value .. ")", "ℹ️")}, nil, {"number"})
                                 if set_val ~= nil and tonumber(set_val[1]) <= max_value then
-                                    edits = il2cppEdits.getComplexFloatEdit(set_val[1], "Single")
+                                    edits = Il2Cpp.getComplexFloatEdit(set_val[1], "Single")
                                 elseif set_val ~= nil and tonumber(set_val[1]) > max_value then
                                     bc.Alert("Value Is Too High", "", "⚠️")
                                     goto set_value
                                 end
                             else
-                                edits = il2cppEdits.getSimpleFloatEdit()
+                                edits = Il2Cpp.getSimpleFloatEdit()
                             end
                         end
                         if edit_type == 4 then
@@ -556,9 +213,9 @@ il2cppEdits = {
                             end
                             if max_value > 0 then
                                 ::set_value::
-                                local set_val = gg.prompt({bc.Prompt("Set Double Value (Max " .. max_value .. ")","ℹ️")}, nil, {"number"})
+                                local set_val = gg.prompt({bc.Prompt("Set Double Value (Max " .. max_value .. ")", "ℹ️")}, nil, {"number"})
                                 if set_val ~= nil and tonumber(set_val[1]) <= max_value then
-                                    edits = il2cppEdits.getComplexFloatEdit(set_val[1], "Double")
+                                    edits = Il2Cpp.getComplexFloatEdit(set_val[1], "Double")
                                 elseif set_val ~= nil and tonumber(set_val[1]) > max_value then
                                     bc.Alert("Value Is Too High", "", "⚠️")
                                     goto set_value
@@ -567,30 +224,110 @@ il2cppEdits = {
                                 bc.Alert("Not Enough Room", "Not enough room for double edit.", "⚠️")
                             end
                         end
+                        if edit_type == 5 then
+                            edits = {{"~A BX LR"}, {"~A8 RET"}}
+                        end
+                        if edit_type == 6 then
+                            edits = {}
+                        end
+                        if edit_type == 7 then
+                            il2cppEdits.createHookCall(il2cpp_address, class_name, method_name)
+                        end
                     end
-                    if not edits then
-                        goto select_edit_type
-                    end
-                    making_edit = true
-                    ::enter_name::
-                    local name_menu = gg.prompt({bc.Prompt("Enter Name For Edit","ℹ️")}, {method_name}, {"text"})
-                    if name_menu == nil then
-                        goto enter_name
-                    end
-                    il2cppEdits.savedEditsTable[#il2cppEdits.savedEditsTable + 1] = {
-                        edit_name = name_menu[1],
-                        class_name = class_name,
-                        method_name = method_name,
-                        arm7_edits = edits[1],
-                        arm8_edits = edits[2]
-                    }
-                    if il2cppEdits.arch.x64 then
-                        il2cppEdits.createSetValues(il2cpp_address, edits[2])
+                    if edit_type ~= 7 then
+                        if not edits then
+                            goto select_edit_type
+                        end
+                        local hookAppend = ""
+                        if #edits == 0 then
+                            hookAppend = " (Create edit and set called method)"
+                        end
+                        ::enter_name::
+                        local name_menu = gg.prompt({bc.Prompt("Enter Name For Edit", "ℹ️")}, {method_name .. hookAppend}, {"text"})
+                        if name_menu == nil then
+                            goto enter_name
+                        end
+                        il2cppEdits.savedEditsTable[#il2cppEdits.savedEditsTable + 1] = {
+                            edit_name = name_menu[1],
+                            class_name = class_name,
+                            method_name = method_name,
+                            arm7_edits = edits[1],
+                            arm8_edits = edits[2]
+                        }
+
+                        if edit_type == 6 then
+                            il2cppEdits.savedEditsTable[#il2cppEdits.savedEditsTable].hook = true
+                            hooking = true
+                        else
+                            making_edit = true
+                        end
+                        if making_edit == true then
+                            if il2cppEdits.arch.x64 then
+                                il2cppEdits.createSetValues(il2cpp_address, edits[2])
+                            else
+                                il2cppEdits.createSetValues(il2cpp_address, edits[1])
+                            end
+                            bc.Alert("Value Has Been Set", "Test to verify it is working and then press the floating GG button to either Save or Discard edit.", "✅")
+                        elseif hooking == true then
+                            bc.Alert("Hook Has Been Saved", "You now need to find the method you want to call and select this hook.", "✅")
+                        end
                     else
-                        il2cppEdits.createSetValues(il2cpp_address, edits[1])
+                        hooking = false
                     end
-                    bc.Alert("Value Has Been Set", "Test to verify it is working and then press the floating GG button to either Save or Discard edit.", "✅")
                 end
+            end
+        end
+    end,
+    -- il2cppEdits.createHookCall(il2cpp_address,class_name,method_name)
+    createHookCall = function(il2cpp_address, class_name, method_name)
+        local hooksMenu = {}
+        local savedTableIndex = {}
+        for i, v in ipairs(il2cppEdits.savedEditsTable) do
+            if v.hook then
+                hooksMenu[#hooksMenu + 1] = v.edit_name
+                savedTableIndex[#savedTableIndex + 1] = i
+            end
+        end
+        ::menu::
+        local menu = gg.choice(hooksMenu, nil, bc.Choice("Select Method", "Select hooked method.", "ℹ️"))
+        if menu == nil then
+            goto menu
+        else
+            local hookedMethod = il2cppEdits.savedEditsTable[savedTableIndex[menu]].method_name
+            local hookedClass = il2cppEdits.savedEditsTable[savedTableIndex[menu]].class_name
+            local hookedAddress = il2cppEdits.findMethod(hookedMethod, hookedClass)
+            local calledAddress = il2cpp_address
+            local call_offset
+            if tonumber(hookedAddress) > tonumber(calledAddress) then
+                local check_offset = tonumber(hookedAddress) - tonumber(calledAddress)
+                if check_offset / 1002400 < 32 then
+                    call_offset = "-" .. hex_o(check_offset)
+                end
+            else
+                local check_offset = tonumber(calledAddress) - tonumber(hookedAddress)
+                if file_ext == "ARM8" then
+                    call_offset = hex_o(check_offset)
+                else
+                    call_offset = "+" .. hex_o(check_offset)
+                end
+            end
+            if call_offset == nil then
+                bc.Alert("Too Far Apart", "These methods are too far apart, try hooking a different method.", "⚠️")
+            else
+                il2cppEdits.savedEditsTable[savedTableIndex[menu]].edits = {{"~A B " .. call_offset}, {"~A8 B [PC,#" .. call_offset .. "]"}}
+                il2cppEdits.savedEditsTable[savedTableIndex[menu]].edit_name = il2cppEdits.savedEditsTable[savedTableIndex[menu]].edit_name:gsub(" %(Create edit and set called method%)", "")
+                il2cppEdits.savedEditsTable[savedTableIndex[menu]].called = {
+                    class_name = class_name,
+                    method_name = method_name
+                }
+                if il2cppEdits.arch.x64 then
+                    il2cppEdits.createSetValues(hookedAddress, il2cppEdits.savedEditsTable[savedTableIndex[menu]].edits[2])
+                else
+                    il2cppEdits.createSetValues(hookedAddress, il2cppEdits.savedEditsTable[savedTableIndex[menu]].edits[1])
+                end
+                il2cppEdits.saveConfig()
+                il2cppEdits.savedEditsTable[savedTableIndex[menu]].active = true
+                bc.Alert("Method Hooked", "The method has been hooked and will call the designated method.", "✅")
             end
         end
     end,
@@ -608,6 +345,9 @@ il2cppEdits = {
             count = count + 1
         until (count == #edits + 1)
         il2cppEdits.create_revert_table = gg.getValues(address_table)
+        if not il2cppEdits.revert_table then
+            il2cppEdits.revert_table = {}
+        end
         il2cppEdits.revert_table[#il2cppEdits.savedEditsTable] = gg.getValues(address_table)
         gg.setValues(address_table)
     end,
@@ -655,7 +395,7 @@ il2cppEdits = {
         end
         method_name_address = il2cppEdits.searchDump(method_name)
         gg.clearResults()
-        gg.setRanges(gg.REGION_C_ALLOC | gg.REGION_C_HEAP)
+        gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)
         gg.searchNumber(method_name_address, flag_type)
         local results = gg.getResults(gg.getResultsCount())
         local methods_found = {}
@@ -682,13 +422,53 @@ il2cppEdits = {
         end
         return il2cpp_address
     end,
+    setValuesHook = function(index)
+        if il2cppEdits.savedEditsTable[index].active == true then
+            gg.setValues(il2cppEdits.revert_table[index])
+            il2cppEdits.savedEditsTable[index].active = false
+            bc.Toast(il2cppEdits.savedEditsTable[index].edit_name .. " Disabled ", "❌")
+        else
+            local hookedMethod = il2cppEdits.savedEditsTable[index].method_name
+            local hookedClass = il2cppEdits.savedEditsTable[index].class_name
+            local hookedAddress = il2cppEdits.findMethod(hookedMethod, hookedClass)
+            local calledMethod = il2cppEdits.savedEditsTable[index].called.method_name
+            local calledClass = il2cppEdits.savedEditsTable[index].called.class_name
+            local calledAddress = il2cppEdits.findMethod(calledMethod, calledClass)
+            local call_offset
+            if tonumber(hookedAddress) > tonumber(calledAddress) then
+                local check_offset = tonumber(hookedAddress) - tonumber(calledAddress)
+                if check_offset / 1002400 < 32 then
+                    call_offset = "-" .. hex_o(check_offset)
+                end
+            else
+                local check_offset = tonumber(calledAddress) - tonumber(hookedAddress)
+                if file_ext == "ARM8" then
+                    call_offset = hex_o(check_offset)
+                else
+                    call_offset = "+" .. hex_o(check_offset)
+                end
+            end
+            il2cppEdits.savedEditsTable[index].edits = {{"~A B " .. call_offset}, {"~A8 B [PC,#" .. call_offset .. "]"}}
+            if il2cppEdits.arch.x64 then
+                il2cppEdits.createSetValues(hookedAddress, il2cppEdits.savedEditsTable[index].edits[2])
+            else
+                il2cppEdits.createSetValues(hookedAddress, il2cppEdits.savedEditsTable[index].edits[1])
+            end            
+            il2cppEdits.savedEditsTable[index].active = true
+            bc.Toast("Method Hooked", "✅")
+        end
+    end,
     --    il2cppEdits.setValues(index)
     setValues = function(index)
-        if il2cppEdits.revert_table[index] then
+        if il2cppEdits.savedEditsTable[index].active == true then
             gg.setValues(il2cppEdits.revert_table[index])
-            il2cppEdits.revert_table[index] = nil
-            bc.Toast(il2cppEdits.savedEditsTable[index].edit_name .. " Disabled ","❌")
+            il2cppEdits.savedEditsTable[index].active = false
+            bc.Toast(il2cppEdits.savedEditsTable[index].edit_name .. " Disabled ", "❌")
         else
+            il2cppEdits.savedEditsTable[index].active = true
+            if not il2cppEdits.revert_table then
+                il2cppEdits.revert_table = {}
+            end
             if il2cppEdits.arch.x64 then
                 edits_arch = "arm8_edits"
             else
@@ -709,14 +489,16 @@ il2cppEdits = {
                 offset = offset + 4
                 count = count + 1
             until (count == #edits + 1)
-            il2cppEdits.revert_table[index] = gg.getValues(address_table)
+            if not il2cppEdits.revert_table[index] then
+                il2cppEdits.revert_table[index] = gg.getValues(address_table)
+            end
             gg.setValues(address_table)
-            bc.Toast(il2cppEdits.savedEditsTable[index].edit_name .. " Enabled ","✅")
+            bc.Toast(il2cppEdits.savedEditsTable[index].edit_name .. " Enabled ", "✅")
         end
     end,
     --    il2cppEdits.saveConfig()
     saveConfig = function()
-        bc.saveTable("il2cppEdits.savedEditsTable",il2cppEdits.savePath .. "/" .. gg.getTargetPackage() .. ".cfg")
+        bc.saveTable("il2cppEdits.savedEditsTable", il2cppEdits.savePath .. "/" .. gg.getTargetPackage() .. ".cfg")
     end,
     --    il2cppEdits.deleteEdit()
     deleteEdit = function()
@@ -750,7 +532,7 @@ il2cppEdits = {
                         goto get_next
                     end
                     il2cppEdits.saveConfig()
-                    bc.Toast("Edits Deleted ","✅")
+                    bc.Toast("Edits Deleted ", "✅")
                 end
             end
         end
@@ -766,13 +548,13 @@ il2cppEdits = {
         if menu ~= nil then
             for k, v in pairs(menu) do
                 to_export[#to_export + 1] = il2cppEdits.savedEditsTable[k]
-            end     
+            end
             local path1 = il2cppEdits.savePath .. "/" .. gg.getTargetPackage() .. "_"
             local path2 = os.date()
             local path3 = "_export.json"
-            local filePath 
+            local filePath
             ::path::
-            filePath = path1..path2..path3
+            filePath = path1 .. path2 .. path3
             local file = io.open(filePath, "w+")
             if file == nil then
                 path2 = os.time()
@@ -785,25 +567,24 @@ il2cppEdits = {
     end,
     --    il2cppEdits.importEdits()
     importEdits = function()
-        local menu = gg.prompt({
-            bc.Prompt("Select JSON File","ℹ️")
-        }, {
+        local menu = gg.prompt({bc.Prompt("Select JSON File", "ℹ️")}, {
             [1] = il2cppEdits.savePath
         }, {
             [1] = "file"
         })
         if menu == nil then
         end
-        if menu ~= nil and menu[1]:find( "%.json") then
+        if menu ~= nil and menu[1]:find("%.json") then
             local import_table = bc.readFile(menu[1], true)
             for i, v in pairs(import_table) do
                 il2cppEdits.savedEditsTable[#il2cppEdits.savedEditsTable + 1] = v
             end
             il2cppEdits.saveConfig()
-            bc.Toast("Edits Imported ","✅")
+            bc.Toast("Edits Imported ", "✅")
         end
     end,
     --   il2cppEdits.home(passed_data)
+    plugin_title = "Plugin: Il2Cpp Edits By Name",
     home = function(passed_data)
         pM.returnHome = true
         pM.returnPluginTable = "il2cppEdits"
@@ -817,20 +598,20 @@ il2cppEdits = {
                 if menu == 1 then
                     il2cppEdits.saveConfig()
                     making_edit = false
-                    bc.Toast("Edit saved ","✅")
+                    bc.Toast("Edit saved ", "✅")
                 end
                 if menu == 2 then
                     gg.setValues(il2cppEdits.create_revert_table)
                     table.remove(il2cppEdits.savedEditsTable, #il2cppEdits.savedEditsTable)
                     making_edit = false
-                    bc.Toast("Edit discarded ","🗑️")
+                    bc.Toast("Edit discarded ", "🗑️")
                 end
                 il2cppEdits.home()
             end
         else
             local menu_names = {}
             for i, v in pairs(il2cppEdits.savedEditsTable) do
-                if il2cppEdits.revert_table[i] then
+                if il2cppEdits.savedEditsTable[i].active == true then
                     menu_names[i] = "✅ " .. v.edit_name
                 else
                     menu_names[i] = "▶️ " .. v.edit_name
@@ -843,7 +624,7 @@ il2cppEdits = {
             menu_names[#menu_names + 1] = "🗑️ Delete Edit"
             menu_names[#menu_names + 1] = "ℹ️ About Script"
             menu_names[#menu_names + 1] = "❌ Exit Script"
-            local menu = gg.choice(menu_names, nil, script_title)
+            local menu = gg.choice(menu_names, nil, bc.Choice(il2cppEdits.plugin_title, "", "ℹ️"))
             if menu ~= nil then
                 if menu == #menu_names then
                     Il2Cpp.dumpTable = nil
@@ -867,7 +648,11 @@ il2cppEdits = {
                         gg.alert(error)
                     end
                 else
-                    il2cppEdits.setValues(menu)
+                    if il2cppEdits.savedEditsTable[menu].hook then
+                        il2cppEdits.setValuesHook(menu)
+                    else
+                        il2cppEdits.setValues(menu)
+                    end
                     il2cppEdits.home()
                 end
             end
@@ -875,37 +660,7 @@ il2cppEdits = {
     end,
     search = function()
         search_list = {}
-        local menu = gg.prompt({
-            "Search Term", 
-            "Additional Search Term", 
-            "Case Sensitive", 
-            "Class Names", 
-            "Method Names", 
-            "Method Types", 
-            "Image Names", 
-            "Namespace Names", 
-            "Parent Class Names"
-        }, {
-            "", 
-            "", 
-            true, 
-            true, 
-            true, 
-            true, 
-            true, 
-            true, 
-            true
-        }, {
-            "text", 
-            "text", 
-            "checkbox", 
-            "checkbox", 
-            "checkbox", 
-            "checkbox", 
-            "checkbox", 
-            "checkbox", 
-            "checkbox"
-        })
+        local menu = gg.prompt({"Search Term", "Additional Search Term", "Case Sensitive", "Class Names", "Method Names", "Method Types", "Image Names", "Namespace Names", "Parent Class Names"}, {"", "", true, true, true, true, true, true, true}, {"text", "text", "checkbox", "checkbox", "checkbox", "checkbox", "checkbox", "checkbox", "checkbox"})
         if menu ~= nil then
             local search_string = menu[1]
             local search_string2
@@ -933,28 +688,29 @@ il2cppEdits = {
                             if val == true then
                                 if v.methods then
                                     for index, value in pairs(v.methods) do
-                                        local class_value
                                         if ind == 5 then
-                                            class_value = value.method_name
-                                            if menu[3] == false then
-                                                class_value = string.lower(class_value)
-                                            end
-                                            if class_value:find(search_string) then
-                                                search_string_found = true
-                                            end
-                                            if search_string2 and class_value:find(search_string2) then
-                                                search_string2_found = true
+                                            local class_value = value.method_name
+                                            if class_value ~= nil then
+                                                if menu[3] == false then
+                                                    class_value = string.lower(class_value)
+                                                end
+                                                if class_value:find(search_string) then
+                                                    search_string_found = true
+                                                end
+                                                if search_string2 and class_value:find(search_string2) then
+                                                    search_string2_found = true
+                                                end
                                             end
                                         end
                                         if ind == 6 then
-                                            class_value = value.method_type
+                                            local method_type_value = tostring(value.method_type)
                                             if menu[3] == false then
-                                                class_value = string.lower(class_value)
+                                                method_type_value = string.lower(method_type_value)
                                             end
-                                            if class_value:find(search_string) then
+                                            if method_type_value:find(search_string) then
                                                 search_string_found = true
                                             end
-                                            if search_string2 and class_value:find(search_string2) then
+                                            if search_string2 and method_type_value:find(search_string2) then
                                                 search_string2_found = true
                                             end
                                         end
@@ -964,24 +720,34 @@ il2cppEdits = {
                         else
                             if val == true then
                                 local class_value = class_vals[ind]
-                                if menu[3] == false then
-                                    class_value = string.lower(class_value)
-                                end
-                                if class_value:find(search_string) then
-                                    search_string_found = true
-                                end
-                                if search_string2 and class_value:find(search_string2) then
-                                    search_string2_found = true
+                                if class_value then
+                                    if menu[3] == false then
+                                        class_value = string.lower(class_value)
+                                    end
+                                    if class_value and class_value:find(search_string) then
+                                        search_string_found = true
+                                    end
+                                    if class_value and search_string2 and class_value:find(search_string2) then
+                                        search_string2_found = true
+                                    end
                                 end
                             end
                         end
                     end
                 end
                 if (search_string2 and search_string_found == true and search_string2_found == true) or (not search_string2 and (search_string_found == true or search_string2_found == true)) then
+                    local tempTable = v
+                    if #tempTable.methods > 500 then
+                        local tempMethods = {}
+                        for i = 1, 500 do
+                            tempMethods[i] = tempTable.methods[i]
+                        end
+                        tempTable.methods = tempMethods
+                    end
                     table.insert(search_list, {
-                        address = v.class_header,
+                        address = tempTable.class_header,
                         flags = flag_type,
-                        name = tostring(v)
+                        name = tostring(tempTable)
                     })
                 end
             end
@@ -1002,27 +768,18 @@ il2cppEdits = {
     scanHome = function()
         il2cppEdits.scanning = true
         if #gg.getSelectedListItems() == 1 then
-            current_class = gg.getSelectedListItems()[1].name
+            local current_class = gg.getSelectedListItems()[1].name
             il2cppEdits.scanning = false
-            local class_header = tonumber(gg.getSelectedListItems()[1].address)
+            local class_header = current_class:gsub(".+class_header.. = ([-0-9]+),.+", "%1")
             local class
-            if search_list then
-                for i, v in pairs(search_list) do
-                    if class_header == v.class_header then
-                        class = v
-                        break
-                    end
-                end
-            else
-                for i, v in pairs(Il2Cpp.dumpTable) do
-                    if class_header == v.class_header then
-                        class = v
-                        break
-                    end
+            for i, v in pairs(Il2Cpp.dumpTable) do
+                if tonumber(class_header) == tonumber(v.class_header) then
+                    class = v
+                    break
                 end
             end
             local menu_items = il2cppEdits.getMethodsFromClass(class)
-            local menu = gg.choice(menu_items.display,nil, bc.Choice("Select Method", "", "ℹ️"))
+            local menu = gg.choice(menu_items.display, nil, bc.Choice("Select Method", "", "ℹ️"))
             if menu ~= nil then
                 il2cppEdits.home(menu_items.search[menu])
             end
@@ -1121,7 +878,7 @@ il2cppEdits = {
         dofile(il2cppEdits.savePath .. gg.getTargetPackage() .. "_" .. gg.getTargetInfo().versionCode .. "_methods.lua")
     end,
     saveDumpedMethods = function()
-        bc.saveTable("Il2Cpp.dumpTable",il2cppEdits.savePath .. gg.getTargetPackage() .. "_" .. gg.getTargetInfo().versionCode .. "_methods.lua")
+        bc.saveTable("Il2Cpp.dumpTable", il2cppEdits.savePath .. gg.getTargetPackage() .. "_" .. gg.getTargetInfo().versionCode .. "_methods.lua")
     end,
     setup = function()
         il2cppEdits.checkConfig()
@@ -1134,25 +891,7 @@ il2cppEdits = {
         end
         Il2Cpp.scriptSettings = {false, false, false, false, false, false, false, false}
         ::set_settings::
-        local settingsMenu = gg.prompt({
-            "Filter Class Results (Faster Class Scan)", 
-            "Re-Dump Methods and Types", 
-            "Manually Select Unity Build", 
-            "Alternate Get Strings (If Freezes At Start)", 
-            "Debug"
-        }, {
-            true, 
-            false, 
-            false, 
-            false, 
-            false
-        }, {
-            "checkbox", 
-            "checkbox", 
-            "checkbox", 
-            "checkbox", 
-            "checkbox"
-        })
+        local settingsMenu = gg.prompt({"Filter Class Results (Faster Class Scan)", "Re-Dump Methods and Types", "Manually Select Unity Build", "Alternate Get Strings (If Freezes At Start)", "Debug"}, {true, false, false, false, false}, {"checkbox", "checkbox", "checkbox", "checkbox", "checkbox"})
         if settingsMenu == nil then
             goto set_settings
         else
@@ -1184,7 +923,7 @@ il2cppEdits = {
             il2cppEdits.getMethodTypes()
         end
     end,
-        --    il2cppEdits.about()
+    --    il2cppEdits.about()
     about = function()
         gg.alert(script_title .. [[
 
@@ -1205,7 +944,7 @@ Here you can export edits you have created to share them with other users of the
 🗑️ Delete Edit
 Here you can delete edits for a game and remove them from the main menu.
 ]])
-    end,
+    end
 }
 
 il2cppEdits.setup()

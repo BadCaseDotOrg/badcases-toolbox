@@ -323,27 +323,24 @@ dH = {
             for i, v in pairs(dump_cs_table) do
                 if v.methods then
                     for index, value in pairs(v.methods) do
-                        if not temp_types[value.method_type] then
-                            temp_types[value.method_type] = value.method_type
+                        if value.method_type:find("-") or value.method_type:find(" [0-9]+ ")  or value.method_type:find("^[0-9]+$") then else
+                            if not temp_types[value.method_type] then
+                                temp_types[value.method_type] = value.method_type
+                            end
                         end
                     end
                 end
             end
             local always_add = { "Boolean", "Single", "Double", "Int16", "Int32", "Int64", "UInt16", "UInt32", "UInt64", "String", "Byte", "SByte", "Char", "Void" }
+            for i, v in pairs(always_add) do
+                bc_toolbox_method_types[#bc_toolbox_method_types + 1] = v
+            end
             for k, v in pairs(temp_types) do
                 local added = false
                 table.insert(bc_toolbox_method_types_all, v)
-                for i, value in pairs(always_add) do
-                    if v == value then
-                        table.insert(bc_toolbox_method_types, v)
-                        added = true
-                        break
-                    end
-                end
-                if v:find("[A-Z_]") then
-                else
+                if v:find("[_]") then else
                     if added == false then
-                        table.insert(bc_toolbox_method_types, v)
+                        bc_toolbox_method_types[#bc_toolbox_method_types + 1] = v
                     end
                 end
             end
@@ -669,21 +666,21 @@ pM = {
     end,
     --    pM.toolboxPlugins
     toolboxPlugins = { {
-        function_table = "staticValueFinder",
-        menu_name = "🕵️‍ Static Value Finder",
-        plugin_path = pluginsDataPath .. "plugin_bc_static_value_finder.lua"
-    }, {
+    	function_table = "metadataDumper",
         menu_name = "💾 Global-Metadata Dumper",
         plugin_path = pluginsDataPath .. "plugin_bc_metadata_dumper.lua"
     }, {
+    	function_table = "libDumper",
         menu_name = "💾 Lib Dumper",
         plugin_path = pluginsDataPath .. "plugin_bc_lib_dumper.lua"
     }, {
+    	function_table = "bcpp_dumper",
         menu_name = "💩 BCppDumper",
         plugin_path = pluginsDataPath .. "plugin_bc_bcpp_dumper.lua"
     },  {
+    	function_table = "classFieldSearcher",
         menu_name = "🔎 Class Field Searcher",
-        plugin_path = pluginsDataPath .. "plugin_bc_class_field_search.lua"
+        plugin_path = pluginsDataPath .. "plugin_bc_class_field_search.lua" 
     }, {
         function_table = "dumpSearcher",
         menu_name = "🔍 Search Dump.cs",
@@ -715,15 +712,23 @@ pM = {
         function_table = "il2cppEdits",
         menu_name = "📝 BadCase's Il2Cpp Edits by Name",
         plugin_path = pluginsDataPath .. "plugin_bc_il2cpp_edits.lua"
-    }, {
-        function_table = "scriptCreator",
-        menu_name = "🏗️ Script Creator",
-        plugin_path = pluginsDataPath .. "plugin_bc_script_creator.lua"
+    },{
+        function_table = "editByOffset",
+        menu_name = "📝 Lib Edits By Offset", 
+        plugin_path = pluginsDataPath .. "plugin_bc_edit_by_offset.lua"
+    } , {
+        function_table = "staticValueFinder",
+        menu_name = "🕵️‍ Static Value Finder",
+        plugin_path = pluginsDataPath .. "plugin_bc_static_value_finder.lua"
     }, {
         function_table = "saveListManager",
         menu_name = "📑 Save List Manager",
         plugin_path = pluginsDataPath .. "plugin_bc_save_list.lua"
-    } },
+    } , {
+        function_table = "scriptCreator",
+        menu_name = "🏗️ Script Creator",
+        plugin_path = pluginsDataPath .. "plugin_bc_script_creator.lua"
+    }},
     menuItemLimit = 0,
     returnHome = false,
     returnPluginTable = "",
@@ -844,21 +849,29 @@ pM = {
 pluginManager = pM
 Il2Cpp = {
     arch = gg.getTargetInfo(),
-    ggHex = function(n)
-        if type(n) ~= "table" then
-            if Il2Cpp.arch.x64 then
-                if n == 0 or n == nil then
-                    return nil
-                else
-                    return "0x" .. string.format('%10x', n):sub(-10):gsub(" ", "")
-                end
-            else
-                return "0x" .. string.format('%08x', n):sub(-8)
-            end
-        else
-            return nil
-        end
-    end,
+    ggHex = function(n, zero)
+		if type(n) ~= "table" then
+			local dwordValueToHex = string.format('%x', n)
+			if #dwordValueToHex == 8 or #dwordValueToHex == 10 or #dwordValueToHex == 12 then
+				if zero == false then
+					return dwordValueToHex .. "h"
+				else
+					return "0x" .. dwordValueToHex
+				end
+			else
+				local sub = #dwordValueToHex / 2
+				sub = tonumber("-" .. sub)
+				dwordValueToHex = dwordValueToHex:sub(sub)
+				if zero == false then
+					return dwordValueToHex .. "h"
+				else
+					return "0x" .. dwordValueToHex
+				end
+			end
+		else
+			return nil
+		end
+	end,
     utf8FromTable = function(t)
         local bytearr = {}
         for _, v in ipairs(t) do
@@ -1693,7 +1706,6 @@ Il2Cpp = {
         if gettype == true and #class_name < 3 then
             class_name = ""
         end
-        
         Il2Cpp.debugFuncEnd(debug_name)
         return class_name
     end,
@@ -1726,9 +1738,49 @@ Il2Cpp = {
         range_end = end_search[1].address
         gg.clearResults()
     end,
-    unityAPIs = {{"5.3.0[a-z]", "v16", 24}, {"5.3.1[a-z]", "v16", 24}, {"5.3.2[a-z]", "v19", 24}, {"5.3.3[a-z]", "v20", 24}, {"5.3.4[a-z]", "v20", 24}, {"5.3.5[a-z]", "v21", 24}, {"5.3.8[a-z]", "v21", 24}, {"5.4.", "v21", 24}, {"5.5.", "v22", 24}, {"5.6.", "v23", 24}, {"2017.", "v24", 24}, {"2018.1.", "v24", 24}, {"2018.2.", "v24", 24}, {"2018.3.", "v24.1", 25}, {"2018.4.", "v24.1", 25}, {"2019.1.", "v24.2", 24}, {"2019.2.", "v24.2", 24}, {"2019.3.0", "v24.2", 24}, {"2019.3.1", "v24.2", 24},
-        {"2019.3.2", "v24.2", 24}, {"2019.3.3", "v24.2", 24}, {"2019.3.4", "v24.2", 24}, {"2019.3.5", "v24.2", 24}, {"2019.3.6", "v24.2", 24}, {"2019.3.7", "v24.3", 24}, {"2019.3.8", "v24.3", 24}, {"2019.3.9", "v24.3", 24}, {"2019.4.[0-9][a-z]", "v24.3", 24}, {"2019.4.1[0-4][a-z]", "v24.3", 24}, {"2019.4.1[5-9][a-z]", "v24.4", 24}, {"2019.4.20[a-z]", "v24.4", 24}, {"2019.4.2[1-9][a-z]", "v24.5", 24}, {"2019.4.3[0-9][a-z]", "v24.5", 24}, {"2020.1.[0-9][a-z]", "v24.3", 24},
-        {"2020.1.10[a-z]", "v24.3", 24}, {"2020.1.1[1-9][a-z]", "v24.4", 24}, {"2020.2.[0-3][a-z]", "v27", 27, true}, {"2020.2.[4-9][a-z]", "v27.1", 27, true}, {"2020.3.", "v27.1", 27, true}, {"2021.", "v27.2", 27, true}, {"2022.", "v29", 27}},
+    unityAPIs = {
+		{"5.3.0[a-z]", "v16", 24}, 
+		{"5.3.1[a-z]", "v16", 24}, 
+		{"5.3.2[a-z]", "v19", 24}, 
+		{"5.3.3[a-z]", "v20", 24}, 
+		{"5.3.4[a-z]", "v20", 24}, 
+		{"5.3.5[a-z]", "v21", 24}, 
+		{"5.3.8[a-z]", "v21", 24}, 
+		{"5.4.", "v21", 24}, 
+		{"5.5.", "v22", 24}, 
+		{"5.6.", "v23", 24}, 
+		{"2017.", "v24", 24}, 
+		{"2018.1.", "v24", 24}, 
+		{"2018.2.", "v24", 24}, 
+		{"2018.3.", "v24.1", 25}, 
+		{"2018.4.", "v24.1", 25}, 
+		{"2019.1.", "v24.2", 24}, 
+		{"2019.2.", "v24.2", 24}, 
+		{"2019.3.0", "v24.2", 24}, 
+		{"2019.3.1", "v24.2", 24},
+        {"2019.3.2", "v24.2", 24}, 
+		{"2019.3.3", "v24.2", 24}, 
+		{"2019.3.4", "v24.2", 24}, 
+		{"2019.3.5", "v24.2", 24}, 
+		{"2019.3.6", "v24.2", 24}, 
+		{"2019.3.7", "v24.3", 24}, 
+		{"2019.3.8", "v24.3", 24}, 
+		{"2019.3.9", "v24.3", 24}, 
+		{"2019.4.[0-9][a-z]", "v24.3", 24}, 
+		{"2019.4.1[0-4][a-z]", "v24.3", 24}, 
+		{"2019.4.1[5-9][a-z]", "v24.4", 24}, 
+		{"2019.4.20[a-z]", "v24.4", 24}, 
+		{"2019.4.2[1-9][a-z]", "v24.5", 24}, 
+		{"2019.4.3[0-9][a-z]", "v24.5", 24}, 
+		{"2020.1.[0-9][a-z]", "v24.3", 24},
+        {"2020.1.10[a-z]", "v24.3", 24}, 
+		{"2020.1.1[1-9][a-z]", "v24.4", 24}, 
+		{"2020.2.[0-3][a-z]", "v27", 27, true}, 
+		{"2020.2.[4-9][a-z]", "v27.1", 27, true}, 
+		{"2020.3.", "v27.1", 27, true}, 
+		{"2021.", "v27.2", 27, true}, 
+		{"2022.", "v29", 27}
+	},
     selectBuild = function()
         local check_version
         gg.setRanges(gg.REGION_C_ALLOC | gg.REGION_ANONYMOUS | gg.REGION_JAVA_HEAP | gg.REGION_OTHER | gg.REGION_CODE_APP)
@@ -1970,24 +2022,24 @@ Il2Cpp = {
         Il2Cpp.debugFuncStart(debug_name)
         Il2Cpp.dumpTable = {}
         if not Il2Cpp.FieldApiOffset then
-            Il2Cpp.setup()
+            Il2Cpp.configureScript()
         end
         gg.clearResults()
         if not Il2Cpp.method_types then
-        if Il2Cpp.followTypePointers == true then
-            if Il2Cpp.arch.x64 then
-                Il2Cpp.getAdditionalTypes()
+            if Il2Cpp.followTypePointers == true then
+                if Il2Cpp.arch.x64 then
+                    Il2Cpp.getAdditionalTypes()
+                else
+                    Il2Cpp.getTypes27()
+                end
+            elseif Il2Cpp.unity_version == "v24" then
+                Il2Cpp.getTypes24()
             else
-                Il2Cpp.getTypes27()
+                Il2Cpp.getTypes24X()
+                if Il2Cpp.arch.x64 and Il2Cpp.unity_version == "v24.5" then
+                    Il2Cpp.getAdditionalTypes()
+                end
             end
-        elseif Il2Cpp.unity_version == "v24" then
-            Il2Cpp.getTypes24()
-        else
-            Il2Cpp.getTypes24X()
-            if Il2Cpp.arch.x64 and Il2Cpp.unity_version == "v24.5" then
-                Il2Cpp.getAdditionalTypes()
-            end
-        end
         end
         local dlls = {}
         for k, v in pairs(Il2Cpp.globalMetadataStrings) do
@@ -1999,10 +2051,10 @@ Il2Cpp = {
             end
         end
         gg.clearResults ()
-        gg.setRanges(gg.REGION_C_ALLOC)
+        gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)
         gg.loadResults(dlls)
         possible_classes = gg.getResults(gg.getResultsCount())
-        gg.setRanges(gg.REGION_C_ALLOC)
+        gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)
         gg.searchPointer(0)
         possible_classes = gg.getResults(gg.getResultsCount())
         gg.setRanges(gg.REGION_ANONYMOUS)
@@ -2063,23 +2115,21 @@ Il2Cpp = {
             current_skip = current_skip + get_indexes
         until (current_skip > total_indexes)
         if Il2Cpp.scriptSettings[8] == true then
-        Il2Cpp.writeDump(Il2Cpp.dumpTable)
+            Il2Cpp.writeDump(Il2Cpp.dumpTable)
         end
-        
         Il2Cpp.debugFuncEnd(debug_name)
         if Il2Cpp.isDebugging == true then
-    print("\nDebug Data\n")
-    for k, v in pairs(Il2Cpp.debugTimeTable) do
-        print("Function: " .. k)
-        print("Times Called: " .. v.count)
-        if v.sub_count > 0 then
-            print("Times Called Secondary: " .. v.sub_count)
+            print("\nDebug Data\n")
+            for k, v in pairs(Il2Cpp.debugTimeTable) do
+                print("Function: " .. k)
+                print("Times Called: " .. v.count)
+                if v.sub_count > 0 then
+                    print("Times Called Secondary: " .. v.sub_count)
+                end
+                print("Total Execution Time: " .. v.total .. " Seconds")
+                print("\n")
+             end
         end
-        print("Total Execution Time: " .. v.total .. " Seconds")
-        print("\n")
-    end
-end
-
     end,
     checkForClasses = function(passed_check_table)
         local debug_name = debug.getinfo(2, "n").name        
@@ -2140,76 +2190,81 @@ end
                 if #tostring(check_class[5].value) > 8 or #tostring(check_class[6].value) > 8 then
                     local class_name = Il2Cpp.getString(check_class[2].value)
                     if class_name and #class_name > 0 then
-                    local get_class = true
-                    for i, v in pairs(Il2Cpp.filters) do
-                        if not class_name or class_name:find(v) then
-                            get_class = false
+                        local get_class = true
+                        for i, v in pairs(Il2Cpp.filters) do
+                            if not class_name or class_name:find(v) then
+                                get_class = false
+                            end
+                        end
+                        if get_class == true then
+                            if Il2Cpp.isDebugging == true and test_classes_skip > 0 and skipped_class_count < test_classes_skip then
+                                skipped_class_count = skipped_class_count + 1
+                            else
+                                local get_image = {}
+                                get_image[1] = {}
+                                get_image[1].address = check_class[1].value
+                                get_image[1].flags = flag_type
+                                get_image = gg.getValues(get_image)
+                                get_image = Il2Cpp.getString(get_image[1].value)
+                                Il2Cpp.dumpTable[#Il2Cpp.dumpTable + 1] = {}
+                                local field_count = check_class[7].value
+                                local method_count = check_class[8].value
+                                if field_count > 10000 then
+                                    field_count = "?"
+                                end
+                                if method_count > 10000 then
+                                    method_count = "?"
+                                end
+                                local fields
+                                if field_count ~= "?" and Il2Cpp.scriptSettings[1] == true and #tostring(check_class[5].value) > 8 then
+                                    fields = Il2Cpp.getFields(check_class[5].value, field_count)
+                                end
+                                if Il2Cpp.scriptSettings[1] == true and field_count == "?" then
+                                    field_count = Il2Cpp.getFieldCount(check_class[5].value)
+                                    fields = Il2Cpp.getFields(check_class[5].value, field_count)
+                                    Il2Cpp.dumpTable[#Il2Cpp.dumpTable].field_count = field_count
+                                    Il2Cpp.dumpTable[#Il2Cpp.dumpTable].fields = fields
+                                end
+                                local parent_class
+                                parent_class = {}
+                                parent_class[1] = {}
+                                parent_class[1].address = check_class[4].value + Il2Cpp.ClassApiNameOffset
+                                parent_class[1].flags = flag_type
+                                parent_class = gg.getValues(parent_class)
+                                parent_class = Il2Cpp.getString(parent_class[1].value)
+                                Il2Cpp.dumpTable[#Il2Cpp.dumpTable].image = get_image
+                                Il2Cpp.dumpTable[#Il2Cpp.dumpTable].namespace = Il2Cpp.getString(check_class[3].value)
+                                Il2Cpp.dumpTable[#Il2Cpp.dumpTable].class = class_name
+                                Il2Cpp.dumpTable[#Il2Cpp.dumpTable].parent_class = parent_class
+                                Il2Cpp.dumpTable[#Il2Cpp.dumpTable].field_count = field_count
+                                Il2Cpp.dumpTable[#Il2Cpp.dumpTable].method_count = method_count
+                                Il2Cpp.dumpTable[#Il2Cpp.dumpTable].fields = fields
+                                Il2Cpp.dumpTable[#Il2Cpp.dumpTable].class_header = check_class[1].address
+                                local method_data
+                                if Il2Cpp.scriptSettings[2] == true and #tostring(check_class[6].value) > 8 then
+                                    if method_count ~= "?" and method_count ~= 0 then
+                                        method_data = Il2Cpp.getMethodDataWithCount(check_class[6].value, method_count)
+                                    end
+                                    if method_count == "?" then
+                                        method_count = Il2Cpp.getMethodCount(check_class[6].value)
+                                        method_data = Il2Cpp.getMethodDataWithCount(check_class[6].value, method_count)
+                                        Il2Cpp.dumpTable[#Il2Cpp.dumpTable].method_count = method_count
+                                        Il2Cpp.dumpTable[#Il2Cpp.dumpTable].methods = method_data
+                                    end
+                                end
+                                Il2Cpp.dumpTable[#Il2Cpp.dumpTable].methods = method_data
+                                local add_to_list = {}
+                                add_to_list.address = check_class[1].address
+                                add_to_list.flags = flag_type
+                                add_to_list.name = tostring(Il2Cpp.dumpTable[#Il2Cpp.dumpTable])
+                                gg.addListItems({add_to_list})
+                            end
                         end
                     end
-                    if get_class == true then
-                        if Il2Cpp.isDebugging == true and test_classes_skip > 0 and skipped_class_count < test_classes_skip then
-                            skipped_class_count = skipped_class_count + 1
-                        else
-                            local get_image = {}
-                            get_image[1] = {}
-                            get_image[1].address = check_class[1].value
-                            get_image[1].flags = flag_type
-                            get_image = gg.getValues(get_image)
-                            get_image = Il2Cpp.getString(get_image[1].value)
-                            Il2Cpp.dumpTable[#Il2Cpp.dumpTable + 1] = {}
-                            local field_count = check_class[7].value
-                            local method_count = check_class[8].value
-                            if field_count > 10000 then
-                                field_count = "?"
-                            end
-                            if method_count > 10000 then
-                                method_count = "?"
-                            end
-                            local fields
-                            if field_count ~= "?" and Il2Cpp.scriptSettings[1] == true and #tostring(check_class[5].value) > 8 then
-                                fields = Il2Cpp.getFields(check_class[5].value, field_count)
-                            end
-                            local parent_class
-                            parent_class = {}
-                            parent_class[1] = {}
-                            parent_class[1].address = check_class[4].value + Il2Cpp.ClassApiNameOffset
-                            parent_class[1].flags = flag_type
-                            parent_class = gg.getValues(parent_class)
-                            parent_class = Il2Cpp.getString(parent_class[1].value)
-                            Il2Cpp.dumpTable[#Il2Cpp.dumpTable].image = get_image
-                            Il2Cpp.dumpTable[#Il2Cpp.dumpTable].namespace = Il2Cpp.getString(check_class[3].value)
-                            Il2Cpp.dumpTable[#Il2Cpp.dumpTable].class = class_name
-                            Il2Cpp.dumpTable[#Il2Cpp.dumpTable].parent_class = parent_class
-                            Il2Cpp.dumpTable[#Il2Cpp.dumpTable].field_count = field_count
-                            Il2Cpp.dumpTable[#Il2Cpp.dumpTable].method_count = method_count
-                            Il2Cpp.dumpTable[#Il2Cpp.dumpTable].fields = fields
-                            Il2Cpp.dumpTable[#Il2Cpp.dumpTable].class_header = check_class[1].address
-                            local method_data
-                            if Il2Cpp.scriptSettings[2] == true and #tostring(check_class[6].value) > 8 then
-                                if method_count ~= "?" and method_count ~= 0 then
-                                    method_data = Il2Cpp.getMethodDataWithCount(check_class[6].value, method_count)
-                                end
-                                if method_count == "?" then
-                                    method_count = Il2Cpp.getMethodCount(check_class[6].value)
-                                    method_data = Il2Cpp.getMethodDataWithCount(check_class[6].value, method_count)
-                                    Il2Cpp.dumpTable[#Il2Cpp.dumpTable].method_count = method_count
-                                    Il2Cpp.dumpTable[#Il2Cpp.dumpTable].methods = method_data
-                                end
-                            end
-                            Il2Cpp.dumpTable[#Il2Cpp.dumpTable].methods = method_data
-                            local add_to_list = {}
-                            add_to_list.address = check_class[1].address
-                            add_to_list.flags = flag_type
-                            add_to_list.name = tostring(Il2Cpp.dumpTable[#Il2Cpp.dumpTable])
-                            gg.addListItems({add_to_list})
-                        end
-                    end
-                end
                 end
                 current_index = current_index + 8
             end
-        end
-        
+        end  
         Il2Cpp.debugFuncEnd(debug_name)
     end,
     writeDump = function(dumpTable)
@@ -2220,10 +2275,10 @@ end
         if gg.getTargetInfo() then
             versionCode = gg.getTargetInfo().versionCode
         end
-        local file = io.open("/sdcard/Download/BCD_" .. gg.getTargetPackage() .. "_" .. versionCode .. "_" .. Il2Cpp.ARM .. ".cs", "w+")
+        local file = io.open(gg.EXT_STORAGE.."/Download/BCD_" .. gg.getTargetPackage() .. "_" .. versionCode .. "_" .. Il2Cpp.ARM .. ".cs", "w+")
         file:write("")
         file:close()
-        local file = io.open("/sdcard/Download/BCD_" .. gg.getTargetPackage() .. "_" .. versionCode .. "_" .. Il2Cpp.ARM .. ".cs", "a")
+        local file = io.open(gg.EXT_STORAGE.."/Download/BCD_" .. gg.getTargetPackage() .. "_" .. versionCode .. "_" .. Il2Cpp.ARM .. ".cs", "a")
         for i, v in ipairs(dumpTable) do
             if v.image and #v.image > 0 then
                 file:write("// Dll : " .. v.image .. "\n")
@@ -2309,7 +2364,7 @@ end
         fields_start = address
         local offset = 0
         gg.clearResults()
-        gg.setRanges(gg.REGION_C_ALLOC)
+        gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)
         local getall = false
         local all_fields = {}
         local count = 1
@@ -2366,7 +2421,6 @@ end
                 current_index = current_index + 3
             end
         end
-        
         Il2Cpp.debugFuncEnd(debug_name)
         return Il2Cpp.current_fields
     end,
@@ -2377,7 +2431,7 @@ end
         local method_count = 0
         local check_pointers = {}
         local offset = 0
-        for i = 1, 200 do
+        for i = 1, 500 do
             check_pointers[i] = {
                 address = address + offset,
                 flags = flag_type
@@ -2385,21 +2439,51 @@ end
             offset = offset + Il2Cpp.FieldApiType
         end
         check_pointers = gg.getValues(check_pointers)
+        local lastChecked
         for i, v in ipairs(check_pointers) do
+        if lastChecked == v.value then
+        break
+        end
             if Il2Cpp.checkIfCa(Il2Cpp.ggHex(v.value)) == true then
                 method_count = method_count + 1
             else
                 break
             end
         end
-        
         Il2Cpp.debugFuncEnd(debug_name)
         return method_count
+    end,
+    getFieldCount = function (address)
+            local debug_name = debug.getinfo(2, "n").name        
+        Il2Cpp.debugFuncStart(debug_name)
+        local field_count = 0
+        local check_pointers = {}
+        local offset = 0
+        for i = 1, 500 do
+            check_pointers[i] = {
+                address = address + offset,
+                flags = flag_type
+            }
+            offset = offset + Il2Cpp.ClassApiFieldsStep
+        end
+        check_pointers = gg.getValues(check_pointers)
+        for i, v in ipairs(check_pointers) do
+			if v.value == 0 then
+				break
+			end
+            if Il2Cpp.checkIfO(Il2Cpp.ggHex(v.value)) == true then
+                field_count = field_count + 1
+            else
+                break
+            end
+        end
+        Il2Cpp.debugFuncEnd(debug_name)
+        return field_count
     end,
     caRanges = {},
     getCaRanges = function()
         for i, v in pairs(gg.getRangesList()) do
-            if v.state == "Ca" then
+            if v.state == "Ca" or v.state == "O"   then
                 table.insert(Il2Cpp.caRanges, v)
             end
         end
@@ -2408,17 +2492,16 @@ end
         local debug_name = debug.getinfo(2, "n").name        
         Il2Cpp.debugFuncStart(debug_name)
         local found = false
-        if address ~= "0x00000000" and address:find("0x") == true then
+        if address ~= "0x00000000" then
             for i, v in pairs(Il2Cpp.caRanges) do
-                if v.state == "Ca" then
-                    if tonumber(address) >= tonumber(v["start"]) and tonumber(address) <= tonumber(v["end"]) then
+				if tonumber(address)  ~= nil and v["start"] ~= nil and v["end"] ~= nil then
+                    if tonumber(address) >= v["start"] and tonumber(address) <= v["end"] then
                         found = true
                         break
                     end
-                end
+				end             
             end
         end
-        
         Il2Cpp.debugFuncEnd(debug_name)
         return found
     end,
@@ -2426,15 +2509,8 @@ end
         local found = false
         if address ~= "0x00000000" then
             for i, v in pairs(gg.getRangesList()) do
-                if ca_range == true then
-                    if v.state == "Ca" then
-                        if tonumber(address) >= tonumber(v["start"]) and tonumber(address) <= tonumber(v["end"]) then
-                            found = true
-                            break
-                        end
-                    end
-                else
-                    if v.state == "O" then
+                if v.state == "O" then
+                    if tonumber(address)  ~= nil and v["start"] ~= nil and v["end"] ~= nil then
                         if tonumber(address) >= tonumber(v["start"]) and tonumber(address) <= tonumber(v["end"]) then
                             found = true
                             break
@@ -2446,7 +2522,6 @@ end
         return found
     end,
     methodsNames = {},
-    
     getMethodDataWithCountTime = 0,
     getMethodDataWithCount = function(address, method_count)
         local debug_name = debug.getinfo(2, "n").name        
@@ -2504,7 +2579,6 @@ end
                 lib_offset = lib_offset
             }
         end
-        
         Il2Cpp.debugFuncEnd(debug_name)
         return method_names
     end,
@@ -2591,6 +2665,7 @@ end
                 end
             end
         end
+        Il2Cpp.lib_name = fixed_lib_name
         bc.Toast(fixed_lib_name .. " Selected","ℹ️")
         ::end_select::
     end,
@@ -2606,23 +2681,34 @@ end
         bc.Toast(" Dumping String Data ","ℹ️")
         local dump_start = 0
         local dump_end = 0
-        gg.dumpMemory(range_start, range_end, "/sdcard/bc/", gg.DUMP_SKIP_SYSTEM_LIBS)
+        gg.dumpMemory(range_start, range_end, gg.EXT_STORAGE.."/bc/", gg.DUMP_SKIP_SYSTEM_LIBS)
         for i, v in pairs(gg.getRangesList()) do
             if range_start > v.start and range_start < v["end"] then
-                if Il2Cpp.arch.x64 then
-                    dump_start = string.format('%10x', v.start):sub(-10)
-                    dump_end = string.format('%10x', v["end"]):sub(-10)
-                else
-                    dump_start = string.format('%08x', v.start):sub(-8)
-                    dump_end = string.format('%08x', v["end"]):sub(-8)
-                end
+				local dwordValueToHex =string.format('%x', v.start)
+				if #dwordValueToHex == 8 or #dwordValueToHex == 10 or #dwordValueToHex == 12 then
+					dump_start = dwordValueToHex
+				else
+					local sub = #dwordValueToHex / 2
+					sub = tonumber("-"..sub)
+					dwordValueToHex = dwordValueToHex:sub(sub)
+					dump_start = dwordValueToHex
+				end
+				local dwordValueToHex =string.format('%x', v["end"])
+				if #dwordValueToHex == 8 or #dwordValueToHex == 10 or #dwordValueToHex == 12 then
+					dump_end = dwordValueToHex
+				else
+					local sub = #dwordValueToHex / 2
+					sub = tonumber("-"..sub)
+					dwordValueToHex = dwordValueToHex:sub(sub)
+					dump_end = dwordValueToHex
+				end          
                 break
             end
         end
         lib_selector_end = {}
         gg.setRanges(gg.REGION_OTHER)
         local BUFSIZE = 4 ^ 13
-        local f = io.input("/sdcard/bc/" .. gg.getTargetPackage() .. "-" .. dump_start .. "-" .. dump_end .. ".bin")
+        local f = io.input(gg.EXT_STORAGE.."/bc/" .. gg.getTargetPackage() .. "-" .. dump_start .. "-" .. dump_end .. ".bin")
         local start_capture = false
         trimmed_content = ""
         local trim_until = 31886460
@@ -2677,7 +2763,6 @@ end
         end
         Il2Cpp.globalMetadataStrings = temp_string_starts
         temp_string_starts = nil
-        
         Il2Cpp.debugFuncEnd(debug_name)
     end,
     getGlobalMetadataStringsBig = function()
@@ -2716,7 +2801,6 @@ end
             end
             skip_results = skip_results + add_skip_results
         until (skip_results > total_results)
-        
         Il2Cpp.debugFuncEnd(debug_name)
     end,
     getTypes24 = function()
@@ -2724,7 +2808,7 @@ end
         Il2Cpp.debugFuncStart(debug_name)
         Il2Cpp.method_types = {}
         bc.Toast("Finding Types","ℹ️")
-        gg.setRanges(gg.REGION_C_ALLOC)
+        gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)
         local searches = {
             ["ARM7"] = {
                 ["first"] = range_start .. "~" .. range_end .. ";" .. range_start .. "~" .. range_end .. ";0~~0;1D~100000D::13",
@@ -2753,7 +2837,6 @@ end
             gg.refineNumber(refine2, flag_type)
         end
         local results = gg.getResults(gg.getResultsCount())
-
         local checked = {}
         local current_index = 1
         for i, v in pairs(results) do
@@ -2766,15 +2849,13 @@ end
                             flags = gg.TYPE_DWORD
                         }}
                         get_type = gg.getValues(get_type)
-
                         local final_type = tostring(get_type[1].value)
                         if not Il2Cpp.method_types[final_type] then
-                        local getString = Il2Cpp.getString(v.value)
-                        if bc.isDirtyString(getString) == true then
-                    else
-                            Il2Cpp.method_types[final_type] = getString
-                            checked[tostring(v.value)] = true
-                        end
+							local getString = Il2Cpp.getString(v.value)
+							if bc.isDirtyString(getString) == true then else
+								Il2Cpp.method_types[final_type] = getString
+								checked[tostring(v.value)] = true
+							end
                         end
                     end
                 end
@@ -2793,11 +2874,10 @@ end
                         get_type2 = gg.getValues(get_type2)
                         local final_type = tostring(get_type2[1].value)
                         if not Il2Cpp.method_types[final_type] then
-                        local getString = Il2Cpp.getString(v.value)
-                        if bc.isDirtyString(getString) == true then
-                    else
-                            Il2Cpp.method_types[final_type] = getString
-                            checked[tostring(v.value)] = true
+							local getString = Il2Cpp.getString(v.value)
+							if bc.isDirtyString(getString) == true then else
+								Il2Cpp.method_types[final_type] = getString
+								checked[tostring(v.value)] = true
                             end
                         end
                     end
@@ -2808,13 +2888,10 @@ end
         gg.clearResults()
         local second_search = searches[Il2Cpp.ARM]["second"]
         gg.searchNumber(second_search, flag_type)
-
         local refine = searches[Il2Cpp.ARM]["second_refine"]
         gg.refineNumber(refine, flag_type)
-
         local refine2 = searches[Il2Cpp.ARM]["second_refine2"]
         gg.refineNumber(refine2, flag_type)
-
         local results = gg.getResults(gg.getResultsCount())
         local current_index = 1
         for i, v in pairs(results) do
@@ -2844,7 +2921,6 @@ end
                 end
             end
         end
-        
         Il2Cpp.debugFuncEnd(debug_name)
     end,
     getTypes24X = function(check_indexes)
@@ -2852,7 +2928,7 @@ end
         Il2Cpp.debugFuncStart(debug_name)
         Il2Cpp.method_types = {}
         gg.clearResults()
-        gg.setRanges(gg.REGION_C_ALLOC)
+        gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)
         local searches = {
             ["ARM7"] = {
                 ["all"] = range_start .. "~" .. range_end .. ";" .. range_start - 200 .. "~" .. range_end .. "::5"
@@ -2864,7 +2940,6 @@ end
         first_search_string = searches[Il2Cpp.ARM]["all"]
         gg.clearResults()
         gg.searchNumber(first_search_string, flag_type)
-
         Il2Cpp.firstPointerSearch = gg.getResults(gg.getResultsCount())
         Il2Cpp.removeConsecutivePointers()
         check_table = {}
@@ -2875,7 +2950,6 @@ end
             end
         end
         gg.loadResults(check_table)
-
         sorted_check_table = {}
         if Il2Cpp.arch.x64 and Il2Cpp.unity_version == "v24.5" then
             check_table = gg.getResults(gg.getResultsCount())
@@ -2895,12 +2969,11 @@ end
                 if not Il2Cpp.method_types[tostring(final_type)] then
                     Il2Cpp.types_count = Il2Cpp.types_count + 1
                     local getString = Il2Cpp.getString(v.value)
-                        if bc.isDirtyString(getString) == true then
-                    else
-                    Il2Cpp.method_types[tostring(final_type)] = getString
-                    for index = 1, 3 do
-                        Il2Cpp.method_types[tostring(final_type) + index] = getString
-                    end
+                    if bc.isDirtyString(getString) == true then else
+						Il2Cpp.method_types[tostring(final_type)] = getString
+						for index = 1, 3 do
+							Il2Cpp.method_types[tostring(final_type) + index] = getString
+						end
                     end
                 end
             end
@@ -2946,12 +3019,11 @@ end
                             if not Il2Cpp.method_types[tostring(method_index)] then
                                 Il2Cpp.types_count = Il2Cpp.types_count + 1
                                 local getString = Il2Cpp.getString(full_check_type_table[i].value)
-                        if bc.isDirtyString(getString) == true then
-                    else
-                                Il2Cpp.method_types[tostring(method_index)] = getString
-                                for index = 1, 3 do
-                                    Il2Cpp.method_types[tostring(method_index) + index] = getString
-                                end
+								if bc.isDirtyString(getString) == true then else
+									Il2Cpp.method_types[tostring(method_index)] = getString
+									for index = 1, 3 do
+										Il2Cpp.method_types[tostring(method_index) + index] = getString
+									end
                                 end
                             end
                         end
@@ -2963,7 +3035,6 @@ end
                 current_skip = current_skip + get_indexes
             until (current_skip > total_indexes)
         end
-        
         Il2Cpp.debugFuncEnd(debug_name)
     end,
     getTypes27 = function()
@@ -2999,8 +3070,7 @@ end
                 ["refine3"] = "0~~0;" .. gm_range_start .. "~" .. gm_range_end .. "::5"
             }
         }
-
-        gg.setRanges(gg.REGION_C_ALLOC)
+        gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)
         gg.clearResults()
         local first_search = searches[Il2Cpp.ARM]["first"]
         gg.searchNumber(first_search, flag_type)
@@ -3010,7 +3080,6 @@ end
         gg.refineNumber(refine2, flag_type, nil, gg.SIGN_NOT_EQUAL)
         local refine3 = searches[Il2Cpp.ARM]["refine3"]
         gg.refineNumber(refine3, flag_type)
-
         local results = gg.getResults(gg.getResultsCount())
         local type_counter = 0
         for i, v in pairs(results) do
@@ -3027,19 +3096,17 @@ end
                 if #tostring(type_id) < 8 then
                     local getString = Il2Cpp.getString(v.value, true)
                     if getString ~= "" and getString ~= nil then
-                    if bc.isDirtyString(getString) == true then
-                    else
-                        type_counter = type_counter + 1
-                        Il2Cpp.method_types[tostring(type_id)] = getString
-                        for index = 1, 3 do
-                            Il2Cpp.method_types[tostring(type_id + index)] = getString
-                        end
-                    end
+						if bc.isDirtyString(getString) == true then else
+							type_counter = type_counter + 1
+							Il2Cpp.method_types[tostring(type_id)] = getString
+							for index = 1, 3 do
+								Il2Cpp.method_types[tostring(type_id + index)] = getString
+							end
+						end
                     end
                 end
             end
         end
-        
         Il2Cpp.debugFuncEnd(debug_name)
     end,
     configureScript = function(choices)
@@ -3047,10 +3114,9 @@ end
         Il2Cpp.debugFuncStart(debug_name)
         ::set_menu::
         if choices then
-        Il2Cpp.scriptSettings = choices
+			Il2Cpp.scriptSettings = choices
         else
-        
-        Il2Cpp.scriptSettings = gg.multiChoice({"Get Fields (Select at least one)", "Get Methods (Select at least one)", "Check For Old Unity Version (5.X.X)", "Filter Results", "Manually Select Unity Build", "Alternate Get Strings (If Freezes At Start)", "Debug Mode","Save Dump"}, {true, true, false, true, false, false,false,true}, script_title)
+			Il2Cpp.scriptSettings = gg.multiChoice({"Get Fields (Select at least one)", "Get Methods (Select at least one)", "Check For Old Unity Version (5.X.X)", "Filter Results", "Manually Select Unity Build", "Alternate Get Strings (If Freezes At Start)", "Debug Mode","Save Dump"}, {true, true, false, true, false, false,false,true}, script_title)
         end
         if Il2Cpp.scriptSettings == nil then
             return false
@@ -3077,10 +3143,8 @@ end
             flag_type = gg.TYPE_DWORD
             Il2Cpp.ARM = "ARM7"
         end
-        
         if Il2Cpp.scriptSettings[4] == true then
-             local menu = gg.multiChoice({"`", "[]"}, {true, true}, "Skip class names containing the below characters.")
-
+            local menu = gg.multiChoice({"`", "[]"}, {true, true}, "Skip class names containing the below characters.")
             if menu ~= nil then
                 if menu[1] == true then
                     Il2Cpp.filters[#Il2Cpp.filters + 1] = "`"
@@ -3104,33 +3168,31 @@ end
             local debug_name = debug.getinfo(2, "n").name        
             Il2Cpp.debugFuncStart(debug_name)
         end
-        if not BASEADDR then
-        Il2Cpp.selectLibrary()
-        Il2Cpp.getCaRanges()
-        
-        dumpStartTime = os.time()
-        Il2Cpp.getMetadataStringsRange()
-        if Il2Cpp.scriptSettings[5] == true then
-            Il2Cpp.selectBuild()
-        else
-            Il2Cpp.setAPIVariables()
+        if not Il2Cpp.globalMetadataStrings then
+			Il2Cpp.selectLibrary()
+			Il2Cpp.getCaRanges()
+			dumpStartTime = os.time()
+			Il2Cpp.getMetadataStringsRange()
+			if Il2Cpp.scriptSettings[5] == true then
+				Il2Cpp.selectBuild()
+			else
+				Il2Cpp.setAPIVariables()
+			end
+			local start_address = range_start - 1
+			gg.clearResults()
+			if ca_range == true then
+				gg.setRanges(gg.REGION_C_ALLOC)
+			else
+				gg.setRanges(gg.REGION_OTHER)
+			end
+			gg.searchNumber("0", gg.TYPE_BYTE, nil, nil, start_address, range_end)
+			local total_results = gg.getResultsCount()
+			if Il2Cpp.scriptSettings[6] == true then
+				Il2Cpp.getGlobalMetadataStringsBig()
+			else
+				Il2Cpp.getGlobalMetadataStrings()
+			end
         end
-        local start_address = range_start - 1
-        gg.clearResults()
-        if ca_range == true then
-            gg.setRanges(gg.REGION_C_ALLOC)
-        else
-            gg.setRanges(gg.REGION_OTHER)
-        end
-        gg.searchNumber("0", gg.TYPE_BYTE, nil, nil, start_address, range_end)
-        local total_results = gg.getResultsCount()
-        if Il2Cpp.scriptSettings[6] == true then
-            Il2Cpp.getGlobalMetadataStringsBig()
-        else
-            Il2Cpp.getGlobalMetadataStrings()
-        end
-        end
-        
         Il2Cpp.debugFuncEnd(debug_name)
     end,
     getAdditionalTypes = function()
@@ -3146,12 +3208,11 @@ end
                         address = k,
                         flags = gg.TYPE_BYTE
                     }}
-                    gg.setRanges(gg.REGION_C_ALLOC)
+                    gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)
                     gg.loadResults(text_string)
-
                     text_string_pointer = gg.getResults(1)
                     gg.clearResults()
-                    gg.setRanges(gg.REGION_C_ALLOC)
+                    gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)
                     gg.loadResults(text_string)
                     gg.searchPointer(0)
                     text_string_pointer = gg.getResults(1)
@@ -3166,7 +3227,6 @@ end
                         get_type3[1].address = get_type2[1].value
                         get_type3[1].flags = gg.TYPE_DWORD
                         get_type3 = gg.getValues(get_type3)
-
                         mid = get_type3[1].value
                         if not Il2Cpp.method_types[tostring(mid)] then
                             Il2Cpp.method_types[tostring(mid)] = value[1]
@@ -3179,7 +3239,6 @@ end
                 end
             end
         end
-        
         Il2Cpp.debugFuncEnd(debug_name)
     end,
     createSearch = function(search_string)
@@ -3211,7 +3270,7 @@ end
             if gg.getResultsCount() > 0 then
                 string_address = string_address[1].address
                 gg.clearResults()
-                gg.setRanges(gg.REGION_C_ALLOC)
+                gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)
                 gg.searchNumber(string_address, flag_type, nil, nil, nil, nil, 1)
                 local method_data = gg.getResults(1)
                 if gg.getResultsCount() > 0 then
@@ -3251,7 +3310,6 @@ end
                 end
             end
         end
-        
         Il2Cpp.debugFuncEnd(debug_name)
     end,
     get_method_searches = {
@@ -3284,7 +3342,6 @@ end
     },
     debugFuncStart = function(debug_name)
         if Il2Cpp.isDebugging == true then
-
             if not Il2Cpp.debugTimeTable[debug_name] then
                 Il2Cpp.debugTimeTable[debug_name] = {
                     count = 0,
@@ -3298,12 +3355,327 @@ end
     end,
     debugFuncEnd = function(debug_name)
         if Il2Cpp.isDebugging == true then
-            
             Il2Cpp.debugTimeTable[debug_name].finished = os.time()
             local debug_time_total = Il2Cpp.debugTimeTable[debug_name].finished - Il2Cpp.debugTimeTable[debug_name].start
             Il2Cpp.debugTimeTable[debug_name].total = Il2Cpp.debugTimeTable[debug_name].total + debug_time_total
         end
-    end
+    end,
+    getBoolEdit = function()
+        local arm7Edit = {
+            isTrue = {"~A MOV R0, #1", "~A BX LR"},
+            isFalse = {"~A MOV R0, #0", "~A BX LR"}
+        }
+        local arm8Edit = {
+            isTrue = {"~A8 MOV W0, #1", "~A8 RET"},
+            isFalse = {"~A8 MOV W0, WZR", "~A8 RET"}
+        }
+        local menu = gg.choice({"True", "False"},nil, bc.Choice("Set Boolean Edit", "", "ℹ️"))
+        if menu ~= nil then
+            if menu == 1 then
+                return {arm7Edit.isTrue, arm8Edit.isTrue}
+            end
+            if menu == 2 then
+                return {arm7Edit.isFalse, arm8Edit.isFalse}
+            end
+        end
+    end,
+    getIntEdit = function()
+        local edits_arm7 = {}
+        local edits_arm8 = {}
+        ::set_val::
+        local menu = gg.prompt({bc.Prompt("Enter Number -255 to 65535","ℹ️")}, {nil}, {"number"})
+        if menu ~= nil then
+            if tonumber(menu[1]) < -256 or tonumber(menu[1]) > 65535 then
+                bc.Alert("Set A Valid Number", "Set a valid number from -255 to 65535.", "⚠️")
+                goto set_val
+            end
+            if tonumber(menu[1]) == 0 then
+                edits_arm8[1] = "~A8 MOV W0, WZR"
+            else
+                edits_arm8[1] = "~A8 MOV W0, #" .. menu[1]
+            end
+            edits_arm8[2] = "~A8 RET"
+            if menu[1]:find("[-]") then
+                edits_arm7[1] = "~A MVN R0, #" .. menu[1]:gsub("[-]", "")
+                edits_arm7[2] = "~A BX LR"
+            else
+                edits_arm7[1] = "~A MOVW R0, #" .. menu[1]
+                edits_arm7[2] = "~A BX LR"
+            end
+            return {edits_arm7, edits_arm8}
+        end
+    end,
+    getComplexFloatEdit = function(target, method_type)
+        target = tonumber(target)
+        local float_edits_arm7 = {}
+        local float_edits_arm8 = {}
+        if target <= 65535 and target >= 0 then
+            if method_type == "Single" then
+                float_edits_arm7[1] = "~A MOVW R0, #" .. target
+                float_edits_arm7[2] = "100A00EEr" -- VMOV S0, R0
+                float_edits_arm7[3] = "C00AB8EEr" -- VCVT.F32.S32 S0, S0
+                float_edits_arm7[4] = "100A10EEr" -- VMOV R0, S0
+                float_edits_arm7[5] = "1EFF2FE1r" -- BX LR
+                if target == 0 then
+                    float_edits_arm8[1] = "~A8 MOV W0, WZR"
+                else
+                    float_edits_arm8[1] = "~A8 MOV W0, #" .. target
+                end
+                float_edits_arm8[2] = "0000271Er" -- FMOV S0, W0
+                float_edits_arm8[3] = "00D8215Er" -- SCVTF S0, S0
+                float_edits_arm8[4] = "0000261Er" -- FMOV W0, S0
+                float_edits_arm8[5] = "C0035FD6r" -- RET
+            elseif method_type == "Double" then
+                float_edits_arm7[1] = "~A MOVW R0, #" .. target
+                float_edits_arm7[2] = "~A VMOV S0, R0"
+                float_edits_arm7[3] = "~A VCVT.F64.U32 D0, S0"
+                float_edits_arm7[4] = "~A VMOV R0, R1, D0"
+                float_edits_arm7[5] = "1EFF2FE1r" -- BX LR
+                if target == 0 then
+                    float_edits_arm8[1] = "~A8 MOV W0, WZR"
+                else
+                    float_edits_arm8[1] = "~A8 MOV W0, #" .. target
+                end
+                float_edits_arm8[2] = "~A8 SCVTF D0, W0"
+                float_edits_arm8[3] = "C0035FD6r" -- RET
+            end
+        end
+        if target <= 131072 and target >= 65537 then
+            float_val_2 = target - 65535
+            if method_type == "Single" then
+                float_edits_arm7[1] = "~A MOVW R0, #65535"
+                float_edits_arm7[2] = "~A MOVW R1, #" .. float_val_2
+                float_edits_arm7[3] = "010080E0r" -- ADD R0, R0, R1
+                float_edits_arm7[4] = "100A00EEr" -- VMOV S0, R0
+                float_edits_arm7[5] = "C00AB8EEr" -- VCVT.F32.S32 S0, S0
+                float_edits_arm7[6] = "100A10EEr" -- VMOV R0, S0
+                float_edits_arm7[7] = "1EFF2FE1r" -- BX LR
+                float_edits_arm8[1] = "~A8 MOV W0, #65535"
+                float_edits_arm8[2] = "~A8 MOV W1, #" .. float_val_2
+                float_edits_arm8[3] = "0000010Br" -- ADD W0, W0, W1
+                float_edits_arm8[4] = "0000271Er" -- FMOV S0, W0
+                float_edits_arm8[5] = "00D8215Er" -- SCVTF S0, S0
+                float_edits_arm8[6] = "0000261Er" -- FMOV W0, S0
+                float_edits_arm8[7] = "C0035FD6r" -- RET
+            elseif method_type == "Double" then
+                float_edits_arm7[1] = "~A MOVW R0, #65535"
+                float_edits_arm7[2] = "~A MOVW R1,  #" .. float_val_2
+                float_edits_arm7[3] = "~A ADD R0, R0, R1"
+                float_edits_arm7[4] = "~A VMOV S0, R0"
+                float_edits_arm7[5] = "~A VCVT.F64.U32 D0, S0"
+                float_edits_arm7[6] = "~A VMOV R0, R1, D0"
+                float_edits_arm7[7] = "1EFF2FE1r" -- BX LR
+                float_edits_arm8[1] = "~A8 MOV W0, #65535"
+                float_edits_arm8[2] = "~A8 MOV W1,  #" .. float_val_2
+                float_edits_arm8[3] = "~A8 ADD W0, W0, W1"
+                float_edits_arm8[4] = "~A8 SCVTF D0, W0"
+                float_edits_arm8[5] = "C0035FD6r" -- RET
+            end
+        end
+        if target > 131072 and target < 429503284 then
+            for i = 2, 65536 do
+                rem = target % i
+                mult = i
+                sub_total = rem * mult
+                add_to = target - sub_total
+                if add_to <= 65536 and add_to > 0 then
+                    if method_type == "Single" then
+                        float_edits_arm7[1] = "~A MOVW R0, #" .. rem
+                        float_edits_arm7[2] = "~A MOVW R1, #" .. mult
+                        float_edits_arm7[3] = "900100E0r" -- MUL R0, R0, R1
+                        float_edits_arm7[4] = "~A MOVW R1, #" .. add_to
+                        float_edits_arm7[5] = "010080E0r" -- ADD R0, R0, R1
+                        float_edits_arm7[6] = "100A00EEr" -- VMOV S0, R0
+                        float_edits_arm7[7] = "C00AB8EEr" -- VCVT.F32.S32 S0, S0
+                        float_edits_arm7[8] = "100A10EEr" -- VMOV R0, S0
+                        float_edits_arm7[9] = "1EFF2FE1r" -- BX LR
+                        float_edits_arm8[1] = "~A8 MOV W0, #" .. rem
+                        float_edits_arm8[2] = "~A8 MOV W1, #" .. mult
+                        float_edits_arm8[3] = "007C011Br" -- MUL W0, W0, W1
+                        float_edits_arm8[4] = "~A8 MOV W1, #" .. add_to
+                        float_edits_arm8[5] = "0000010Br" -- ADD W0, W0, W1
+                        float_edits_arm8[6] = "0000271Er" -- FMOV S0, W0
+                        float_edits_arm8[7] = "00D8215Er" -- SCVTF S0, S0
+                        float_edits_arm8[8] = "0000261Er" -- FMOV W0, S0
+                        float_edits_arm8[9] = "C0035FD6r" -- RET
+                    elseif method_type == "Double" then
+                        float_edits_arm7[1] = "~A MOVW R0, #" .. rem
+                        float_edits_arm7[2] = "~A MOVW R1,  #" .. mult
+                        float_edits_arm7[3] = "~A MUL R0, R0, R1"
+                        float_edits_arm7[4] = "~A MOVW R1,  #" .. add_to
+                        float_edits_arm7[5] = "~A ADD R1, R0, R1"
+                        float_edits_arm7[6] = "~A VMOV S0, R0"
+                        float_edits_arm7[7] = "~A VCVT.F64.U32 D0, S0"
+                        float_edits_arm7[8] = "~A VMOV R0, R1, D0"
+                        float_edits_arm7[9] = "1EFF2FE1r" -- BX LR
+                        float_edits_arm8[1] = "~A8 MOV W0, #" .. rem
+                        float_edits_arm8[2] = "~A8 MOV W1,  #" .. mult
+                        float_edits_arm8[3] = "~A8 MUL W0, W0, W1"
+                        float_edits_arm8[4] = "~A8 MOV W1,  #" .. add_to
+                        float_edits_arm8[5] = "~A8 ADD W0, W0, W1"
+                        float_edits_arm8[6] = "~A8 SCVTF D0, W0"
+                        float_edits_arm8[7] = "C0035FD6r" -- RET
+                    end
+                    break
+                end
+            end
+            if target > 429503283 then
+                bc.Alert("Value Is Too High", "Set lower than 429503283.", "⚠️")
+            end
+            if target < 0 then
+                bc.Alert("Value Is Too Low", "Set to 0 or higher.", "⚠️")
+            end
+        end
+        if float_edits_arm7 and float_edits_arm8 then
+            return {float_edits_arm7, float_edits_arm8}
+        end
+    end,
+    simpleFloatsTable = {
+        ["ARM7"] = {{
+            ["hex_edits"] = "0101A0E3r",
+            ["float_value"] = 2
+        }, {
+            ["hex_edits"] = "4104A0E3r",
+            ["float_value"] = 8
+        }, {
+            ["hex_edits"] = "4204A0E3r",
+            ["float_value"] = 32
+        }, {
+            ["hex_edits"] = "4304A0E3r",
+            ["float_value"] = 128
+        }, {
+            ["hex_edits"] = "1103A0E3r",
+            ["float_value"] = 512
+        }, {
+            ["hex_edits"] = "4504A0E3r",
+            ["float_value"] = 2048
+        }, {
+            ["hex_edits"] = "4604A0E3r",
+            ["float_value"] = 8192
+        }, {
+            ["hex_edits"] = "4704A0E3r",
+            ["float_value"] = 32768
+        }, {
+            ["hex_edits"] = "1203A0E3r",
+            ["float_value"] = 131072
+        }, {
+            ["hex_edits"] = "4904A0E3r",
+            ["float_value"] = 524288
+        }, {
+            ["hex_edits"] = "0502A0E3r",
+            ["float_value"] = 8589934592
+        }, {
+            ["hex_edits"] = "5104A0E3r",
+            ["float_value"] = 34359738368
+        }, {
+            ["hex_edits"] = "5204A0E3r",
+            ["float_value"] = 137438953472
+        }, {
+            ["hex_edits"] = "5304A0E3r",
+            ["float_value"] = 549755813888
+        }, {
+            ["hex_edits"] = "1503A0E3r",
+            ["float_value"] = 2199023255552
+        }, {
+            ["hex_edits"] = "5504A0E3r",
+            ["float_value"] = 8796093022208
+        }, {
+            ["hex_edits"] = "5604A0E3r",
+            ["float_value"] = 35184372088832
+        }, {
+            ["hex_edits"] = "5704A0E3r",
+            ["float_value"] = 140737488355328
+        }, {
+            ["hex_edits"] = "1603A0E3r",
+            ["float_value"] = 562949953421312
+        }, {
+            ["hex_edits"] = "5904A0E3r",
+            ["float_value"] = 2251799813685248
+        }, {
+            ["hex_edits"] = "0602A0E3r",
+            ["float_value"] = 36893488147419103000
+        }},
+        ["ARM8"] = {{
+            ["hex_edits"] = "0000A852r",
+            ["float_value"] = 2
+        }, {
+            ["hex_edits"] = "0020A852r",
+            ["float_value"] = 8
+        }, {
+            ["hex_edits"] = "0040A852r",
+            ["float_value"] = 32
+        }, {
+            ["hex_edits"] = "0060A852r",
+            ["float_value"] = 128
+        }, {
+            ["hex_edits"] = "0080A852r",
+            ["float_value"] = 512
+        }, {
+            ["hex_edits"] = "00A0A852r",
+            ["float_value"] = 2048
+        }, {
+            ["hex_edits"] = "00C0A852r",
+            ["float_value"] = 8192
+        }, {
+            ["hex_edits"] = "00E0A852r",
+            ["float_value"] = 32768
+        }, {
+            ["hex_edits"] = "0000A952r",
+            ["float_value"] = 131072
+        }, {
+            ["hex_edits"] = "0020A952r",
+            ["float_value"] = 524288
+        }, {
+            ["hex_edits"] = "0000AA52r",
+            ["float_value"] = 8589934592
+        }, {
+            ["hex_edits"] = "0020AA52r",
+            ["float_value"] = 34359738368
+        }, {
+            ["hex_edits"] = "0040AA52r",
+            ["float_value"] = 137438953472
+        }, {
+            ["hex_edits"] = "0060AA52r",
+            ["float_value"] = 549755813888
+        }, {
+            ["hex_edits"] = "0080AA52r",
+            ["float_value"] = 2199023255552
+        }, {
+            ["hex_edits"] = "00A0AA52r",
+            ["float_value"] = 8796093022208
+        }, {
+            ["hex_edits"] = "00C0AA52r",
+            ["float_value"] = 35184372088832
+        }, {
+            ["hex_edits"] = "00E0AA52r",
+            ["float_value"] = 140737488355328
+        }, {
+            ["hex_edits"] = "0000AB52r",
+            ["float_value"] = 562949953421312
+        }, {
+            ["hex_edits"] = "0020AB52r",
+            ["float_value"] = 2251799813685248
+        }, {
+            ["hex_edits"] = "0000AC52r",
+            ["float_value"] = 36893488147419103000
+        }}
+    },
+    getSimpleFloatEdit = function()
+        local edits_arm7 = {}
+        local edits_arm8 = {}
+        local menu_table = {}
+        for i, v in pairs(Il2Cpp.simpleFloatsTable["ARM7"]) do
+            menu_table[#menu_table + 1] = v.float_value
+        end
+        local menu = gg.choice(menu_table, nil, bc.Choice("Select Float Value", "", "ℹ️"))
+        if menu ~= nil then
+            edits_arm7[1] = Il2Cpp.simpleFloatsTable["ARM7"][menu].hex_edits
+            edits_arm7[2] = "~A BX LR"
+            edits_arm8[1] = Il2Cpp.simpleFloatsTable["ARM8"][menu].hex_edits
+            edits_arm8[2] = "~A8 RET"
+            return {edits_arm7, edits_arm8}
+        end
+    end,
 }
 
 bc = {
@@ -3325,12 +3697,12 @@ bc = {
         gg.dumpMemory(create_start, create_end, savePath, gg.DUMP_SKIP_SYSTEM_LIBS)
     end,
     saveTable = function(tableName,savePath,JSON)
-    local file = io.open(savePath, "w+")
-    local temp_table 
+		local file = io.open(savePath, "w+")
+		local temp_table 
         if tableName:find("[.]") then
-        temp_table = _G[tableName:gsub("(.+)[.].+","%1")][tableName:gsub(".+[.](.+)","%1")]
+			temp_table = _G[tableName:gsub("(.+)[.].+","%1")][tableName:gsub(".+[.](.+)","%1")]
         else
-        temp_table = _G[tableName]
+			temp_table = _G[tableName]
         end
         if JSON == true then
             file:write(json.encode(temp_table))
@@ -3367,35 +3739,36 @@ bc = {
     end,
     isDirtyString = function(checkString)
     if checkString:find( " ") or 
-						checkString:find( "") or
-                        checkString:find( "") or 
-						checkString:find( "\r\n") or
-                        checkString:find( "\r") or 
-						checkString:find( "\n") or
-                        checkString:find( "") or 
-						checkString:find( '"') then
-						return true
-						end
+		checkString:find( "") or
+        checkString:find( "") or 
+		checkString:find( "\r\n") or
+        checkString:find( "\r") or 
+		checkString:find( "\n") or
+        checkString:find( "") or 
+		checkString:find( '"') then
+			return true
+		end
     end,
     tagPointers = function(pointersTable)
-    for i,v in pairs (pointersTable) do
-    pointersTable[i].address = tostring(pointersTable[i].address):gsub("0x","0xB40000")
-    end
-    return pointersTable
+		for i,v in pairs (pointersTable) do
+			pointersTable[i].address = tostring(pointersTable[i].address):gsub("0x","0xB40000")
+		end
+		return pointersTable
     end,
     untagPointers = function(pointersTable)
-    for i,v in pairs (pointersTable) do
-    pointersTable[i].address = tostring(pointersTable[i].address):gsub("0xB40000","0x")
-    end
-    return pointersTable
+		for i,v in pairs (pointersTable) do
+			pointersTable[i].address = tostring(pointersTable[i].address):gsub("0xB40000","0x")
+		end
+		return pointersTable
     end,
-	}
+}
 
 if pcall(pM.initPluginManager) == false then
     pM.toolboxAllPlugins = pM.toolboxPlugins
     pM.saveAllPlugins()
     pM.saveMenuLimit()
 end
+
 pM.savePlugins()
 
 pM.home()
