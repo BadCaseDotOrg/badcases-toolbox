@@ -50,7 +50,7 @@ editByOffset = {
                     end
                     if edit_type == 5 then
                         ::set_value::
-                        local set_val = gg.prompt({bc.Prompt("Set Double Value (Max " .. max_value .. ")", "ℹ️")}, nil, {"number"})
+                        local set_val = gg.prompt({bc.Prompt("Set Double Value", "ℹ️")}, nil, {"number"})
                         if set_val ~= nil then
                             edits = Il2Cpp.getComplexFloatEdit(set_val[1], "Double")
                         end

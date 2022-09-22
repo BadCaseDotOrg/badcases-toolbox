@@ -300,18 +300,14 @@ il2cppFields = {
     end,
     --    il2cppFields.editFields()
     editFields = function()
-
-        -- local menu_names = {}
-
         local save_list_selected = gg.getSelectedListItems()
         local save_edit_values = {
             class_name = working_class,
             field_name = working_field_name,
             value_type = save_list_selected[1].flags
         }
-        -- menu_names[#menu_names + 1] = save_list_selected[1].name
-        local menu_items = {script_title .. "\n\nℹ️ Create Edit ℹ\n" .. il2cppFields.gg_flags[save_list_selected[1].flags] .. " " .. save_list_selected[1].name, "Freeze", "Edit All Instances (Only select one)", "Edit All Instances Address + 4 X4 (Only select one)", "Edit All Instances With Selected Value (Only select one)", "Edit All Instances = To Value Below (Only select one)", "Edit All Instances ~= To Value Below (Only select one)",
-            "Edit All Instances <= To Value Below (Only select one)", "Edit All Instances >= To Value Below (Only select one)", "Edit All Instances In Range Below (Only select one)", "Edit All Instances NOT In Range Below (Only select one)", "Enter Number Or Number Range (0~100)"}
+        local menu_items = {script_title .. "\n\nℹ️ Create Edit ℹ\n" .. il2cppFields.gg_flags[save_list_selected[1].flags] .. " " .. save_list_selected[1].name, "Freeze", "Edit All Instances (Only select one)", "Edit All Instances Address + 4 X4 (Only select one)", "Edit All Instances Address + 8 X8 (Only select one)", "Edit All Instances With Selected Value (Only select one)", "Edit All Instances = To Value Below (Only select one)",
+            "Edit All Instances ~= To Value Below (Only select one)", "Edit All Instances <= To Value Below (Only select one)", "Edit All Instances >= To Value Below (Only select one)", "Edit All Instances In Range Below (Only select one)", "Edit All Instances NOT In Range Below (Only select one)", "Enter Number Or Number Range (0~100)"}
         local mF = false
         local cB = "checkbox"
         local menu_values = {save_list_selected[1].value, mF, mF, mF, mF, mF, mF, mF, mF, mF, mF, ""}
@@ -326,7 +322,6 @@ il2cppFields = {
                 if i == 1 and v == "" then
                     emptyInput1 = true
                 end
-
                 if i > 2 and type(v) == "boolean" and v == true then
                     if i > 5 and menu[#menu] == "" then
                         emptyInput2 = true
@@ -388,7 +383,22 @@ il2cppFields = {
                 save_edit_values.edit_type = "edit_all_x4"
                 save_edit_values.edit_value = editValue
             end
-            if menu[5] == true then -- Edit All Instances With Selected Value (Only select one)
+            if menu[4] == true then -- Edit All Instances Address + 8 X8 (Only select one)
+                local save_list_all = gg.getListItems()
+                for i, v in pairs(save_list_all) do
+                    save_list_all[i].address = save_list_all[i].address + 8
+                    if editValue == 0 then
+                        save_list_all[i].value = save_list_all[i].value
+                    else
+                        save_list_all[i].value = editValue .. "X8"
+                    end
+                    save_list_all[i].freeze = save_edit_values.freeze
+                end
+                gg.setValues(save_list_all)
+                save_edit_values.edit_type = "edit_all_x8"
+                save_edit_values.edit_value = editValue
+            end
+            if menu[6] == true then -- Edit All Instances With Selected Value (Only select one)
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
                     if save_list_all[i].value == save_list_selected[1].value then
@@ -402,7 +412,7 @@ il2cppFields = {
                 save_edit_values.edit_value = editValue
                 save_edit_values.must_equal = save_list_selected[1].value
             end
-            if menu[6] == true then -- Edit All Instances = To Value Below (Only select one)
+            if menu[7] == true then -- Edit All Instances = To Value Below (Only select one)
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
                     if save_list_all[i].value == mustEqual then
@@ -416,7 +426,7 @@ il2cppFields = {
                 save_edit_values.edit_value = editValue
                 save_edit_values.must_equal = mustEqual
             end
-            if menu[7] == true then -- Edit All Instances ~= To Value Below (Only select one)
+            if menu[8] == true then -- Edit All Instances ~= To Value Below (Only select one)
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
                     if save_list_all[i].value ~= mustEqual then
@@ -430,7 +440,7 @@ il2cppFields = {
                 save_edit_values.edit_value = editValue
                 save_edit_values.must_equal = mustEqual
             end
-            if menu[8] == true then -- Edit All Instances <= To Value Below (Only select one)
+            if menu[9] == true then -- Edit All Instances <= To Value Below (Only select one)
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
                     if save_list_all[i].value <= mustEqual then
@@ -444,7 +454,7 @@ il2cppFields = {
                 save_edit_values.edit_value = editValue
                 save_edit_values.must_equal = mustEqual
             end
-            if menu[9] == true then -- Edit All Instances >= To Value Below (Only select one)
+            if menu[10] == true then -- Edit All Instances >= To Value Below (Only select one)
                 local save_list_all = gg.getListItems()
                 for i, v in pairs(save_list_all) do
                     if save_list_all[i].value >= mustEqual then
@@ -458,7 +468,7 @@ il2cppFields = {
                 save_edit_values.edit_value = editValue
                 save_edit_values.must_equal = mustEqual
             end
-            if menu[10] == true then -- Edit All Instances In Range Below (Only select one)
+            if menu[11] == true then -- Edit All Instances In Range Below (Only select one)
                 local save_list_all = gg.getListItems()
                 local minValue = tonumber(menu[#menu]:gsub("(.+)~.+", "%1"))
                 local maxValue = tonumber(menu[#menu]:gsub(".+~(.+)", "%1"))
@@ -474,7 +484,7 @@ il2cppFields = {
                 save_edit_values.edit_value = editValue
                 save_edit_values.must_equal = mustEqual
             end
-            if menu[11] == true then -- Edit All Instances NOT In Range Below (Only select one)
+            if menu[12] == true then -- Edit All Instances NOT In Range Below (Only select one)
                 local save_list_all = gg.getListItems()
                 local minValue = tonumber(menu[#menu]:gsub("(.+)~.+", "%1"))
                 local maxValue = tonumber(menu[#menu]:gsub(".+~(.+)", "%1"))
@@ -594,6 +604,20 @@ il2cppFields = {
             gg.setValues(save_list_all)
             gg.addListItems(save_list_all)
         end
+        if saved_edit_table.edit_type == "edit_all_x8" then
+            local save_list_all = gg.getListItems()
+            for i, v in pairs(save_list_all) do
+                save_list_all[i].address = save_list_all[i].address + 8
+                if tonumber(saved_edit_table.edit_value) == 0 then
+                    save_list_all[i].value = save_list_all[i].value
+                else
+                    save_list_all[i].value = saved_edit_table.edit_value .. "X8"
+                end
+                save_list_all[i].freeze = saved_edit_table.freeze
+            end
+            gg.setValues(save_list_all)
+            gg.addListItems(save_list_all)
+        end
         if saved_edit_table.edit_type == "edit_indexes" then
             local save_list_all = gg.getListItems()
             for i, v in pairs(saved_edit_table.edit_indexes) do
@@ -682,9 +706,7 @@ il2cppFields = {
             gg.setValues(save_list_all)
             gg.addListItems(save_list_all)
         end
-
         fields = {}
-
         bc.Toast("Edits Made ", "ℹ️")
         il2cppFields.home()
     end,
@@ -909,7 +931,7 @@ il2cppFields = {
         pcall(il2cppFields.checkMethodTypes)
         Il2Cpp.scriptSettings = {false, false, false, false, false, false, false, false}
         ::set_settings::
-        local settingsMenu = gg.prompt({"Filter Class Results (Faster Class Scan)", "Re-Dump Fields and Types", "Manually Select Unity Build", "Alternate Get Strings (If Freezes At Start)", "Debug"}, {true, false, false, false, false}, {"checkbox", "checkbox", "checkbox", "checkbox", "checkbox"})
+        local settingsMenu = gg.prompt({"Filter Class Results (Faster Class Scan)", "Re-Dump Fields and Types", "Manually Select Unity Build", "Alternate Get Strings (If Freezes At Start)", "Debug", "Custom Unity Build"}, {true, false, false, false, false, false}, {"checkbox", "checkbox", "checkbox", "checkbox", "checkbox", "checkbox"})
         if settingsMenu == nil then
             goto set_settings
         else
@@ -934,6 +956,9 @@ il2cppFields = {
             end
             if settingsMenu[5] == true then
                 Il2Cpp.scriptSettings[7] = true
+            end
+            if settingsMenu[6] == true then
+                Il2Cpp.scriptSettings[9] = true
             end
         end
         Il2Cpp.configureScript(Il2Cpp.scriptSettings)

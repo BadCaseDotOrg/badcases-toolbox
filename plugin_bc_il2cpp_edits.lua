@@ -254,7 +254,6 @@ il2cppEdits = {
                             arm7_edits = edits[1],
                             arm8_edits = edits[2]
                         }
-
                         if edit_type == 6 then
                             il2cppEdits.savedEditsTable[#il2cppEdits.savedEditsTable].hook = true
                             hooking = true
@@ -453,7 +452,7 @@ il2cppEdits = {
                 il2cppEdits.createSetValues(hookedAddress, il2cppEdits.savedEditsTable[index].edits[2])
             else
                 il2cppEdits.createSetValues(hookedAddress, il2cppEdits.savedEditsTable[index].edits[1])
-            end            
+            end
             il2cppEdits.savedEditsTable[index].active = true
             bc.Toast("Method Hooked", "✅")
         end
@@ -891,7 +890,7 @@ il2cppEdits = {
         end
         Il2Cpp.scriptSettings = {false, false, false, false, false, false, false, false}
         ::set_settings::
-        local settingsMenu = gg.prompt({"Filter Class Results (Faster Class Scan)", "Re-Dump Methods and Types", "Manually Select Unity Build", "Alternate Get Strings (If Freezes At Start)", "Debug"}, {true, false, false, false, false}, {"checkbox", "checkbox", "checkbox", "checkbox", "checkbox"})
+        local settingsMenu = gg.prompt({"Filter Class Results (Faster Class Scan)", "Re-Dump Methods and Types", "Manually Select Unity Build", "Alternate Get Strings (If Freezes At Start)", "Debug", "Custom Unity Build"}, {true, false, false, false, false, false}, {"checkbox", "checkbox", "checkbox", "checkbox", "checkbox", "checkbox"})
         if settingsMenu == nil then
             goto set_settings
         else
@@ -916,6 +915,9 @@ il2cppEdits = {
             end
             if settingsMenu[5] == true then
                 Il2Cpp.scriptSettings[7] = true
+            end
+            if settingsMenu[6] == true then
+                Il2Cpp.scriptSettings[9] = true
             end
         end
         Il2Cpp.configureScript(Il2Cpp.scriptSettings)

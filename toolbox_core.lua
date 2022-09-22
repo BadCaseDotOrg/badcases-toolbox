@@ -2216,14 +2216,18 @@ Il2Cpp = {
                                     method_count = "?"
                                 end
                                 local fields
-                                if field_count ~= "?" and Il2Cpp.scriptSettings[1] == true and #tostring(check_class[5].value) > 8 then
+                                if field_count ~= "?" and field_count > 0 and Il2Cpp.scriptSettings[1] == true and #tostring(check_class[5].value) > 8 then
                                     fields = Il2Cpp.getFields(check_class[5].value, field_count)
-                                end
-                                if Il2Cpp.scriptSettings[1] == true and field_count == "?" then
+                                elseif field_count == "?" and Il2Cpp.scriptSettings[1] == true and #tostring(check_class[5].value) > 8 then
                                     field_count = Il2Cpp.getFieldCount(check_class[5].value)
                                     fields = Il2Cpp.getFields(check_class[5].value, field_count)
                                     Il2Cpp.dumpTable[#Il2Cpp.dumpTable].field_count = field_count
                                     Il2Cpp.dumpTable[#Il2Cpp.dumpTable].fields = fields
+                                elseif field_count == "?" then
+                                    field_count = 0
+                                end
+                                if field_count == "?" or fields == nil or (fields and #fields == 0) then
+                                        Il2Cpp.dumpTable[#Il2Cpp.dumpTable].field_count = 0
                                 end
                                 local parent_class
                                 parent_class = {}
@@ -2241,16 +2245,17 @@ Il2Cpp = {
                                 Il2Cpp.dumpTable[#Il2Cpp.dumpTable].fields = fields
                                 Il2Cpp.dumpTable[#Il2Cpp.dumpTable].class_header = check_class[1].address
                                 local method_data
-                                if Il2Cpp.scriptSettings[2] == true and #tostring(check_class[6].value) > 8 then
-                                    if method_count ~= "?" and method_count ~= 0 then
-                                        method_data = Il2Cpp.getMethodDataWithCount(check_class[6].value, method_count)
-                                    end
-                                    if method_count == "?" then
-                                        method_count = Il2Cpp.getMethodCount(check_class[6].value)
-                                        method_data = Il2Cpp.getMethodDataWithCount(check_class[6].value, method_count)
-                                        Il2Cpp.dumpTable[#Il2Cpp.dumpTable].method_count = method_count
-                                        Il2Cpp.dumpTable[#Il2Cpp.dumpTable].methods = method_data
-                                    end
+                                if method_count ~= "?" and method_count > 0 and Il2Cpp.scriptSettings[2] == true and #tostring(check_class[6].value) > 8 then
+                                    method_data = Il2Cpp.getMethodDataWithCount(check_class[6].value, method_count)
+                                elseif method_count == "?" and Il2Cpp.scriptSettings[2] == true and #tostring(check_class[6].value) > 8 then
+                                    method_count = Il2Cpp.getMethodCount(check_class[6].value)
+                                    method_data = Il2Cpp.getMethodDataWithCount(check_class[6].value, method_count)
+                                    Il2Cpp.dumpTable[#Il2Cpp.dumpTable].method_count = method_count
+                                elseif method_count == "?" then
+                                    Il2Cpp.dumpTable[#Il2Cpp.dumpTable].method_count = 0
+                                end
+                                if method_count == "?" or method_data == nil or (method_data and #method_data == 0) then
+                                        Il2Cpp.dumpTable[#Il2Cpp.dumpTable].method_count = 0
                                 end
                                 Il2Cpp.dumpTable[#Il2Cpp.dumpTable].methods = method_data
                                 local add_to_list = {}
@@ -3109,6 +3114,157 @@ Il2Cpp = {
         end
         Il2Cpp.debugFuncEnd(debug_name)
     end,
+    newCustomBuild = function(editBuild)
+        local unityBuilds = {
+        	"v24",
+            "v24.1",
+            "v24.2",
+            "v24.3",
+            "v24.4",
+            "v24.5",
+            "v27",
+            "v27.1",
+            "v27.2",
+            "v29"
+        }
+        ::choose::
+        local menu
+        if not editBuild then
+            menu = gg.choice(unityBuilds,nil, bc.Choice("Select Build", "Select build to use as base for your custom build.", "ℹ️"))
+        else
+            menu = Il2Cpp.customUnityBuilds[editBuild]
+        end
+        if menu == nil then
+            goto choose
+        else
+            local baseAPI
+            if editBuild then
+                baseAPI = menu
+            else
+                baseAPI = Il2Cpp.Il2cppApi[unityBuilds[menu]]
+            end
+            local followPointers
+            for i, v in ipairs(Il2Cpp.unityAPIs) do
+                if unityBuilds[menu] == v[2] then
+                    followPointers = v[4]
+                    break
+                end
+            end
+            table.insert(Il2Cpp.unityAPIs,1, {"custom", "custom", "custom", followPointers})
+            local apiMenuVarNames = {
+                [1] = "FieldApiOffset",
+                [2] = "FieldApiType",
+                [3] = "FieldApiClassOffset",
+                [4] = "ClassApiNameOffset",
+                [5] = "ClassApiMethodsStep",
+                [6] = "ClassApiCountMethods",
+                [7] = "ClassApiMethodsLink",
+                [8] = "ClassApiFieldsLink",
+                [9] = "ClassApiFieldsStep",
+                [10] = "ClassApiCountFields",
+                [11] = "ClassApiParentOffset",
+                [12] = "ClassApiNameSpaceOffset",
+                [13] = "ClassApiStaticFieldDataOffset",
+                [14] = "MethodsApiClassOffset",
+                [15] = "MethodsApiNameOffset",
+                [16] = "MethodsApiParamCount",
+                [17] = "MethodsApiReturnType",
+                [18] = "TypeApiType"
+            }
+            ::continue::
+            local apiMenu = {
+                [1] = "FieldApiOffset\nARM7: "..baseAPI.FieldApiOffset.ARM7.."\nARM8: "..baseAPI.FieldApiOffset.ARM8,
+                [2] = "FieldApiType\nARM7: "..baseAPI.FieldApiType.ARM7.."\nARM8: "..baseAPI.FieldApiType.ARM8,
+                [3] = "FieldApiClassOffset\nARM7: "..baseAPI.FieldApiClassOffset.ARM7.."\nARM8: "..baseAPI.FieldApiClassOffset.ARM8,
+                [4] = "ClassApiNameOffset\nARM7: "..baseAPI.ClassApiNameOffset.ARM7.."\nARM8: "..baseAPI.ClassApiNameOffset.ARM8,
+                [5] = "ClassApiMethodsStep\nARM7: "..baseAPI.ClassApiMethodsStep.ARM7.."\nARM8: "..baseAPI.ClassApiMethodsStep.ARM8,
+                [6] = "ClassApiCountMethods\nARM7: "..baseAPI.ClassApiCountMethods.ARM7.."\nARM8: "..baseAPI.ClassApiCountMethods.ARM8,
+                [7] = "ClassApiMethodsLink\nARM7: "..baseAPI.ClassApiMethodsLink.ARM7.."\nARM8: "..baseAPI.ClassApiMethodsLink.ARM8,
+                [8] = "ClassApiFieldsLink\nARM7: "..baseAPI.ClassApiFieldsLink.ARM7.."\nARM8: "..baseAPI.ClassApiFieldsLink.ARM8,
+                [9] = "ClassApiFieldsStep\nARM7: "..baseAPI.ClassApiFieldsStep.ARM7.."\nARM8: "..baseAPI.ClassApiFieldsStep.ARM8,
+                [10] = "ClassApiCountFields\nARM7: "..baseAPI.ClassApiCountFields.ARM7.."\nARM8: "..baseAPI.ClassApiCountFields.ARM8,
+                [11] = "ClassApiParentOffset\nARM7: "..baseAPI.ClassApiParentOffset.ARM7.."\nARM8: "..baseAPI.ClassApiParentOffset.ARM8,
+                [12] = "ClassApiNameSpaceOffset\nARM7: "..baseAPI.ClassApiNameSpaceOffset.ARM7.."\nARM8: "..baseAPI.ClassApiNameSpaceOffset.ARM8,
+                [13] = "ClassApiStaticFieldDataOffset\nARM7: "..baseAPI.ClassApiStaticFieldDataOffset.ARM7.."\nARM8: "..baseAPI.ClassApiStaticFieldDataOffset.ARM8,
+                [14] = "MethodsApiClassOffset\nARM7: "..baseAPI.MethodsApiClassOffset.ARM7.."\nARM8: "..baseAPI.MethodsApiClassOffset.ARM8,
+                [15] = "MethodsApiNameOffset\nARM7: "..baseAPI.MethodsApiNameOffset.ARM7.."\nARM8: "..baseAPI.ClassApiNameOffset.ARM8,
+                [16] = "MethodsApiParamCount\nARM7: "..baseAPI.MethodsApiParamCount.ARM7.."\nARM8: "..baseAPI.MethodsApiParamCount.ARM8,
+                [17] = "MethodsApiReturnType\nARM7: "..baseAPI.MethodsApiReturnType.ARM7.."\nARM8: "..baseAPI.MethodsApiReturnType.ARM8,
+                [18] = "TypeApiType\nARM7: "..baseAPI.TypeApiType.ARM7.."\nARM8: "..baseAPI.TypeApiType.ARM8,
+                [19] = "Done"
+            }
+            local buildMenu = gg.choice(apiMenu,nil,"")
+            if buildMenu == nil then
+                goto continue
+            else
+                if buildMenu == 19 then
+                    Il2Cpp.Il2cppApi["custom"] = baseAPI
+                    baseAPI.unityAPI = {"custom", "custom", "custom", followPointers}
+                    Il2Cpp.saveCustomBuild(baseAPI)
+                    return nil
+                end
+                local variableMenu = gg.prompt ({
+                    apiMenuVarNames[buildMenu].. " ARM7",
+                    apiMenuVarNames[buildMenu].. " ARM8" 
+                },{
+                    baseAPI[apiMenuVarNames[buildMenu]].ARM7, 
+                    baseAPI[apiMenuVarNames[buildMenu]].ARM8
+                },{
+                    "number",
+                    "number"
+                })
+                if variableMenu ~= nil then
+                    baseAPI[apiMenuVarNames[buildMenu]].ARM7 = variableMenu[1]
+                    baseAPI[apiMenuVarNames[buildMenu]].ARM8 = variableMenu[2]
+                end
+                goto continue
+            end
+        end
+    end,
+    saveCustomBuild = function(build)
+        if not Il2Cpp.customUnityBuilds then
+            Il2Cpp.customUnityBuilds = {}
+        end
+        Il2Cpp.customUnityBuilds[gg.getTargetPackage()] = build
+        bc.saveTable("Il2Cpp.customUnityBuilds",configDataPath .. gg.getTargetPackage().."_customBuilds.lua",false,true)
+    end,
+    savedCustomBuild = function()
+        local menu_items = {}
+        for k,_ in pairs (Il2Cpp.customUnityBuilds) do
+            menu_items[#menu_items + 1] = k
+        end
+        ::choose::
+        local menu = gg.choice (menu_items,nil, bc.Choice("Select Build", "Select custom build to edit.", "ℹ️"))
+        if menu == nil then
+            goto choose
+        else
+            Il2Cpp.newCustomBuild(menu_items[menu])
+        end
+    end,
+    loadCustomBuilds = function ()
+        local status, retval = pcall(bc.readFile, configDataPath .. gg.getTargetPackage().."_customBuilds.lua");
+        if status == true then
+            dofile(configDataPath .. gg.getTargetPackage().."_customBuilds.lua")
+            if Il2Cpp.customUnityBuilds[gg.getTargetPackage()] then
+                table.insert(Il2Cpp.unityAPIs,1, Il2Cpp.customUnityBuilds[gg.getTargetPackage()].unityAPI)
+                Il2Cpp.Il2cppApi["custom"] = Il2Cpp.customUnityBuilds[gg.getTargetPackage()]
+            end
+        end
+    end,
+    customBuild = function()
+        ::choose::
+        local menu = gg.choice ({"Create New Custom Build","Edit Saved Custom Build"},nil, bc.Choice("Custom Build Menu", "Create new or edit saved custom build.", "ℹ️"))
+        if menu == nil then 
+            goto choose
+        else
+            if menu == 1 then
+                Il2Cpp.newCustomBuild()
+            end
+            if menu == 2 then
+                Il2Cpp.savedCustomBuild()
+            end
+        end
+    end,
     configureScript = function(choices)
         local debug_name = debug.getinfo(2, "n").name        
         Il2Cpp.debugFuncStart(debug_name)
@@ -3116,7 +3272,7 @@ Il2Cpp = {
         if choices then
 			Il2Cpp.scriptSettings = choices
         else
-			Il2Cpp.scriptSettings = gg.multiChoice({"Get Fields (Select at least one)", "Get Methods (Select at least one)", "Check For Old Unity Version (5.X.X)", "Filter Results", "Manually Select Unity Build", "Alternate Get Strings (If Freezes At Start)", "Debug Mode","Save Dump"}, {true, true, false, true, false, false,false,true}, script_title)
+			Il2Cpp.scriptSettings = gg.multiChoice({"Get Fields (Select at least one)", "Get Methods (Select at least one)", "Check For Old Unity Version (5.X.X)", "Filter Results", "Manually Select Unity Build", "Alternate Get Strings (If Freezes At Start)", "Debug Mode","Save Dump","Custom Unity Build"}, {true, true, false, true, false, false,false,true,false}, script_title)
         end
         if Il2Cpp.scriptSettings == nil then
             return false
@@ -3144,7 +3300,7 @@ Il2Cpp = {
             Il2Cpp.ARM = "ARM7"
         end
         if Il2Cpp.scriptSettings[4] == true then
-            local menu = gg.multiChoice({"`", "[]"}, {true, true}, "Skip class names containing the below characters.")
+            local menu = gg.multiChoice({"`", "[]"}, {true, true}, bc.Choice("Skip class names containing the below characters.", "", "ℹ️"))
             if menu ~= nil then
                 if menu[1] == true then
                     Il2Cpp.filters[#Il2Cpp.filters + 1] = "`"
@@ -3173,10 +3329,28 @@ Il2Cpp = {
 			Il2Cpp.getCaRanges()
 			dumpStartTime = os.time()
 			Il2Cpp.getMetadataStringsRange()
-			if Il2Cpp.scriptSettings[5] == true then
-				Il2Cpp.selectBuild()
-			else
-				Il2Cpp.setAPIVariables()
+			local skipMe = false
+			if Il2Cpp.Il2cppApi["custom"] then
+			    ::choose::
+			    local useSaved = gg.choice ({"Yes","No"},nil, bc.Choice("Custom Build Found", "A saved custom build was found for this game. Do you want to use it?", "ℹ️"))
+			    if useSaved == nil then
+			        goto choose
+			    else
+			        if useSaved == 1 then
+			            skipMe = true
+			            Il2Cpp.setAPIVariables("custom")
+			        end
+			    end
+			end
+			if skipMe == false then
+			    if Il2Cpp.scriptSettings[5] == true then
+				    Il2Cpp.selectBuild()
+			    elseif Il2Cpp.scriptSettings[9] == true then
+			        Il2Cpp.customBuild()
+			        Il2Cpp.setAPIVariables("custom")
+			    else
+				    Il2Cpp.setAPIVariables()
+			    end
 			end
 			local start_address = range_start - 1
 			gg.clearResults()
@@ -3696,8 +3870,8 @@ bc = {
         end
         gg.dumpMemory(create_start, create_end, savePath, gg.DUMP_SKIP_SYSTEM_LIBS)
     end,
-    saveTable = function(tableName,savePath,JSON)
-		local file = io.open(savePath, "w+")
+    saveTable = function(tableName,savePath,JSON,atOnce)
+		
 		local temp_table 
         if tableName:find("[.]") then
 			temp_table = _G[tableName:gsub("(.+)[.].+","%1")][tableName:gsub(".+[.](.+)","%1")]
@@ -3705,11 +3879,27 @@ bc = {
 			temp_table = _G[tableName]
         end
         if JSON == true then
+            local file = io.open(savePath, "w+")
             file:write(json.encode(temp_table))
+            file:close()
         else
-            file:write(tableName .. " = " .. tostring(temp_table))
+            if atOnce == true then
+                local file = io.open(savePath, "w+")
+                file:write(tableName .. " = "..tostring(temp_table))
+                file:close()
+            else
+                local file = io.open(savePath, "w+")
+                file:write("")
+                file:close()
+                local file = io.open(savePath, "a")
+                file:write(tableName .. " = {\n")
+                for i,v in ipairs (temp_table) do
+                    file:write(tostring(v) .. ",\n")
+                end
+                file:write("}")
+                file:close()
+            end
         end
-        file:close()
     end,
     Alert = function(headerString, bodyString, emoji)
         if #bodyString > 0 then
@@ -3770,6 +3960,8 @@ if pcall(pM.initPluginManager) == false then
 end
 
 pM.savePlugins()
+
+Il2Cpp.loadCustomBuilds()
 
 pM.home()
 
