@@ -1,7 +1,7 @@
 scriptCreator = {
     -- scriptCreator.home()
     home = function()
-        local menu = gg.choice({"🆕 Create Script Function", "➕ Add Edit To Function", "➖ Remove Edit From Function", "☰ Menu Editor", "🔤 Set Script Title", "💾 Export script", "❌ Exit"}, nil, script_title .. "\n\nℹ️ Script Creator ℹ️")
+        local menu = gg.choice({"🆕 Create Script Function", "➕ Add Edit To Function", "➖ Remove Edit From Function", "☰ Menu Editor", "🔤 Set Script Title", "💾 Export script", "Manage Community Scripts", "❌ Exit"}, nil, script_title .. "\n\nℹ️ Script Creator ℹ️")
         if menu ~= nil then
             if menu == 1 then
                 scriptCreator.createFunction()
@@ -27,6 +27,9 @@ scriptCreator = {
                 scriptCreator.exportScript()
             end
             if menu == 7 then
+                scriptCreator.manageScripts()
+            end
+            if menu == 8 then
                 pluginManager.returnHome = false
             end
         end
@@ -242,10 +245,14 @@ end,
             goto check_name
         end
         local translateTable
-        local translateMenu = gg.choice({"✅ Yes","❌ No"},nil,script_title .. "\n\nℹ️ Do you want to add translations to other languages for your menus? ℹ️")
-        if translateMenu ~= nil then
-            if translateMenu == 1 then
+        local shareWithCommunity = false
+        local exportOptions = gg.multiChoice({"Add Translations","Share Script With BadCase.org Community"},nil,"ℹ️ Export Options ℹ️") 
+        if exportOptions ~= nil then
+            if exportOptions[1] then
                 translateTable = scriptCreator.addTranslations()
+            end
+            if exportOptions[2] then
+                 shareWithCommunity = true
             end
         end
 		local scriptExportTable = {
@@ -456,9 +463,7 @@ end,
 			'        elseif v.method_name then',
 			'            setMethodValues(function_index, i)',
 			'        elseif v.field_name then',
-			'            if status == "Enabled" then',
-			'                setFieldValues(v, function_index, i)',
-			'            end',
+			'            setFieldValues(v, function_index, i)',
 			'        elseif v.editName then',
 			'            setLibOffsetValues(v, function_index, i)',
 			'        else',
@@ -550,7 +555,7 @@ end,
 			'            namespace_string = gg.getResults(1, 1)',
 			'            namespace_string = ggHex(namespace_string[1].address, false)',
 			'        else',
-			'            namespace_string = ggHex(range_start - 19, false)',
+			'            namespace_string = ggHex(range_start - 56, false).."~"..ggHex(range_start - 19, false)',
 			'        end',
 			'        gg.clearResults()',
 			'        gg.setRanges(gg.REGION_OTHER | gg.REGION_C_ALLOC)',
@@ -724,8 +729,8 @@ end,
 			'            end',
 			'            gg.setValues(save_list_all)',
 			'            gg.addListItems(save_list_all)',
-			'            scriptFunctions[function_index].edits[edit_index].enabled = true',
 			'        end',
+			'        scriptFunctions[function_index].edits[edit_index].enabled = true',
 			'    end',
 			'    fields = {}',
 			'end',
@@ -1013,11 +1018,96 @@ end,
         file:write(final_script_string)
         file:close()
         gg.alert(script_title .. "\n\nℹ️ Script exported to " .. dataPath .. game_path .. "/scripts/ ℹ️")
+        if shareWithCommunity == true then
+            scriptCreator.uploadScript(final_script_string)
+        end
     end,
     -- scriptCreator.getTimestamp()
     getTimestamp = function()
         return os.date("%b_%d_%Y_%H.%M")
+    end,
+    uploadScript = function(script_data)
+    local bs = { [0] =
+        'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P',
+        'Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d','e','f',
+        'g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v',
+        'w','x','y','z','0','1','2','3','4','5','6','7','8','9','+','/',
+    }
+    
+    local invBs1 = {}
+    local invBs2 = {}
+    local invBs3 = {}
+    local invBs4 = {}
+
+    for i = 0, 63 do
+        invBs1[bs[i]] = i << 18
+        invBs2[bs[i]] = i << 12
+        invBs3[bs[i]] = i << 6
+        invBs4[bs[i]] = i
     end
+
+    local function e(s)
+        local byte, rep = string.byte, string.rep
+        local pad = 2 - ((#s - 1) % 3)
+        s = (s .. rep('\0', pad)):gsub("...", function(cs)
+            local a, b, c = byte(cs, 1, 3)
+            return bs[a >> 2] .. bs[(a & 3) << 4 | b >> 4] .. bs[(b & 15) << 2 | c >> 6] .. bs[c & 63]
+        end)
+        return s:sub(1, #s - pad) .. rep('=', pad)
+    end
+    
+    local prepareUpload = e(script_data)
+    prepareUpload = e(prepareUpload)
+    ::upmenu::
+    local uploadData = gg.prompt({
+      "BadCase.org User Name", 
+      "BadCase.org Password", 
+      "Author Name (Displayed to users)", 
+      "Script Name (Do not put Author Name in Script Name)"
+    }, nil, {"text", "text", "text", "text"})
+    
+    if uploadData == nil or #uploadData[1] == 0 or #uploadData[2] == 0 or #uploadData[3] == 0 or #uploadData[4] == 0 then
+        goto upmenu
+    end
+    ::reload::
+    sendScript = gg.makeRequest("http://badcase.org/gg_community_scripts.php", nil, "user=" .. uploadData[1] .. "&pass=" .. uploadData[2] .. "&author_name=" .. uploadData[3] .. "&script_name=" .. uploadData[4] .. "&script_data=" .. prepareUpload .. "&package_name=" .. gg.getTargetPackage() .. "&doing=upload").content
+    gg.alert(sendScript)
+end,
+manageScripts = function()
+    ::umenu::
+
+    local userData = gg.prompt({"BadCase.org User Name", "BadCase.org Password","Change Author Name","New Author Name"}, nil, {"text", "text", "checkbox", "text"})
+    if #userData[1] == 0 or #userData[2] == 0 then
+        goto umenu
+    end
+    if userData[3] == true and #userData[4] > 0 then
+    local updateAuthor = gg.makeRequest("http://badcase.org/gg_community_scripts.php", nil, "user=" .. userData[1] .. "&pass=" .. userData[2] .. "&author_name=" .. userData[4] .. "&doing=change_author").content
+    gg.alert(updateAuthor)
+    end
+    ::reload::
+    getScripts = gg.makeRequest("http://badcase.org/gg_community_scripts.php", nil, "user=" .. userData[1] .. "&pass=" .. userData[2] .. "&doing=list_scripts").content
+    load(getScripts)()
+    local scriptsMenu = gg.choice(script_list, nil, "Select a script.")
+    if scriptsMenu ~= nil then
+        local doWith = gg.choice({"Rename Script", "Delete Script"}, nil, "Action?")
+        if doWith ~= nil then
+            if doWith == 1 then
+                local renameScriptPrompt = gg.prompt({"New Script Name"}, nil, {"text"})
+                if renameScriptPrompt ~= nil and #renameScriptPrompt[1] > 0 then
+                    renameScript = gg.makeRequest("http://badcase.org/gg_community_scripts.php", nil, "user=" .. userData[1] .. "&pass=" .. userData[2] .. "&doing=change_script_name&script_name=" .. renameScriptPrompt[1] .. "&script_idx=" .. scriptsMenu).content
+                    gg.alert(renameScript)
+                end
+            end
+            if doWith == 2 then
+                local confirmDelete = gg.choice({"Yes", "No"}, nil, "Are you sure you want to delete the script? This CAN NOT be undone.")
+                if confirmDelete ~= nil and confirmDelete == 1 then
+                    deleteScript = gg.makeRequest("http://badcase.org/gg_community_scripts.php", nil, "user=" .. userData[1] .. "&pass=" .. userData[2] .. "&doing=delete_script&script_idx=" .. scriptsMenu).content
+                    gg.alert(deleteScript)
+                end
+            end
+        end
+    end
+end
 }
 
 pluginManager.returnHome = true
